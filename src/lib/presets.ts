@@ -120,11 +120,11 @@ const TOPICS: Preset[] = (() => {
     out.push({ name, formula, reading, spec, theme })
 
   // Design
-  A = ["circle", 22, 40, 20, 20]; B = ["square", 82, 36, 28, 28]; C = ["square", 146, 28, 44, 44]
+  A = ["circle", 14, 66, 22, 22]; B = ["square", 62, 52, 30, 30]; C = ["square", 132, 8, 52, 52]
   add("Design", "Token tiers", "● — ■ — ■", "A raw value, aliased up: primitive, semantic, component.", chain(A, B, C))
-  A = ["circle", 10, 40, 20, 20]; B = ["square", 64, 30, 40, 40]; C = ["square", 138, 22, 56, 56]
+  A = ["circle", 10, 58, 18, 18]; B = ["square", 50, 14, 40, 40]; C = ["square", 118, 10, 74, 80]
   add("Design", "Atomic", "● — (● ⊂ ■) — (■ ⊂ ■)", "Atom, molecule, organism. Each level frames the last.", {
-    f: [A, B, C], k: [["circle", 76, 42, 16, 16], ["square", 153, 37, 26, 26]], l: [link(A, B), link(B, C)],
+    f: [A, B, C], k: [["circle", 62, 26, 16, 16], ["square", 140, 35, 30, 30]], l: [link(A, B), link(B, C)],
   })
   add("Design", "Variant", "□ × (● ⊂ ■)", "One component and a variant drawn across it. Same core, shifted surface.", {
     f: [["square", 92, 24, 52, 52]], o: [["square", 56, 24, 52, 52]], k: [["circle", 109, 41, 18, 18]],
@@ -132,59 +132,59 @@ const TOPICS: Preset[] = (() => {
   add("Design", "Theming", "(○ × ●) / ■", "Two modes sharing one slot, set on the same structure.", {
     f: [["circle", 90, 6, 40, 40], ["square", 62, 50, 76, 44]], o: [["circle", 70, 6, 40, 40]],
   })
-  A = ["circle", 14, 34, 32, 32]; B = ["triangle", 83, 29, 34, 33]; C = ["square", 154, 34, 32, 32]
+  A = ["circle", 12, 8, 26, 26]; B = ["triangle", 66, 18, 44, 42]; C = ["square", 134, 40, 52, 52]
   add("Design", "Draft", "○ — △ — ■", "Idea, sketch, build. The outlines turn solid only at the end.", { f: [C], o: [A, B], l: [link(A, B), link(B, C)] })
-  A = ["triangle", 16, 66, 20, 18]; B = ["triangle", 76, 54, 32, 30]; C = ["triangle", 140, 38, 48, 46]
+  A = ["triangle", 14, 72, 18, 16]; B = ["triangle", 64, 34, 32, 30]; C = ["triangle", 128, 4, 60, 56]
   add("Design", "Iteration", "▲ — ▲ — ▲", "Each pass builds on the last and climbs a little higher.", chain(A, B, C))
 
   // Code
-  A = ["circle", 12, 40, 20, 20]; B = ["square", 72, 24, 56, 52]; C = ["circle", 168, 40, 20, 20]
+  A = ["circle", 14, 8, 20, 20]; B = ["square", 70, 14, 60, 62]; C = ["circle", 162, 66, 24, 24]
   add("Code", "Function", "● — (▲ ⊂ ■) — ●", "Input, a contained transformation, output.", {
-    f: [A, B, C], k: [["triangle", 88, 38, 24, 22]], l: [link(A, B), link(B, C)],
+    f: [A, B, C], k: [["triangle", 88, 34, 24, 22]], l: [link(A, B), link(B, C)],
   })
   add("Code", "Dependencies", "■ / ■ / ■", "Each layer built on the one below. Pull one out and everything above moves.", {
     f: [["square", 86, 4, 28, 24], ["square", 78, 31, 44, 28], ["square", 68, 62, 64, 34]],
   })
-  A = ["triangle", 12, 31, 34, 30]; B = ["square", 84, 34, 32, 32]; C = ["circle", 158, 12, 24, 24]; D = ["circle", 158, 64, 24, 24]
+  A = ["triangle", 16, 10, 28, 26]; B = ["square", 66, 18, 48, 48]; C = ["circle", 150, 8, 26, 26]; D = ["circle", 160, 60, 30, 30]
   add("Code", "Pub/sub", "▲ — ■ — {●, ●}", "One event, broadcast through a channel to everyone listening.", {
     f: [A, B, C, D], l: [link(A, B), link(B, C), link(B, D)],
   })
 
   // Systems
-  A = ["triangle", 16, 31, 32, 30]; B = ["square", 72, 22, 56, 56]; C = ["triangle", 152, 31, 32, 30]
+  A = ["triangle", 18, 6, 26, 24]; B = ["square", 66, 16, 62, 62]; C = ["triangle", 150, 62, 30, 28]
   add("Systems", "Stock & flow", "▲ — ■ — ▲", "Inflow, a stock that accumulates, outflow.", chain(A, B, C))
   A = ["triangle", 82, 6, 36, 32]; B = ["circle", 128, 58, 32, 32]; C = ["square", 40, 58, 32, 32]
   add("Systems", "Feedback", "▲ — ● — ■ — ▲", "Action makes a signal, the signal reshapes structure, structure steers the next action.", {
     f: [A, B, C], l: [link(A, B), link(B, C), link(C, A)],
   })
-  A = ["square", 10, 28, 44, 44]; B = ["square", 84, 34, 32, 32]; C = ["square", 146, 28, 44, 44]
+  A = ["square", 8, 10, 62, 62]; B = ["square", 88, 38, 26, 26]; C = ["square", 134, 46, 50, 46]
   add("Systems", "Interface", "■ — □ — ■", "Two systems meeting at a contract neither of them owns.", { f: [A, C], o: [B], l: [link(A, B), link(B, C)] })
   add("Systems", "Platform", "{▲, ▲, ▲} / ■", "Many products standing on one shared base.", {
     f: [["triangle", 34, 30, 32, 30], ["triangle", 84, 30, 32, 30], ["triangle", 134, 30, 32, 30], ["square", 20, 63, 160, 32]],
   })
-  A = ["square", 8, 38, 24, 24]; B = ["triangle", 48, 35, 24, 23]; C = ["square", 88, 38, 24, 24]; D = ["triangle", 128, 35, 24, 23]; E = ["circle", 166, 36, 28, 28]
+  A = ["square", 6, 14, 22, 22]; B = ["triangle", 44, 52, 26, 24]; C = ["square", 86, 18, 24, 24]; D = ["triangle", 126, 54, 26, 24]; E = ["circle", 160, 10, 34, 34]
   add("Systems", "Pipeline", "■ — ▲ — ■ — ▲ — ●", "Store, transform, store, transform, until it surfaces as insight.", chain(A, B, C, D, E))
 
   // Agents & LLMs
-  A = ["square", 14, 39, 22, 22]; B = ["square", 62, 39, 22, 22]; C = ["square", 110, 39, 22, 22]; D = ["circle", 156, 36, 28, 28]
+  A = ["square", 10, 62, 20, 20]; B = ["square", 50, 34, 22, 22]; C = ["square", 96, 18, 24, 24]; D = ["circle", 148, 26, 40, 40]
   add("Agents & LLMs", "Next token", "■ — ■ — ■ — ○", "The tokens laid down so far, and the unwritten one the model predicts next.", { f: [A, B, C], o: [D], l: [link(A, B), link(B, C), link(C, D)] })
   add("Agents & LLMs", "Context window", "{●, ●, ▲} ⊂ ■", "Everything the model can see at once, held in one frame.", {
-    f: [["square", 30, 18, 140, 64]], k: [["circle", 52, 38, 24, 24], ["circle", 88, 38, 24, 24], ["triangle", 124, 37, 26, 24]],
+    f: [["square", 30, 14, 140, 72]], k: [["circle", 46, 30, 30, 30], ["circle", 90, 52, 16, 16], ["triangle", 122, 26, 30, 28]],
   })
-  A = ["square", 22, 22, 56, 56]; B = ["circle", 122, 22, 56, 56]
-  add("Agents & LLMs", "Retrieval", "(● ⊂ ■) — (▲ ⊂ ●)", "Knowledge pulled from a store into the model that acts on it.", {
-    f: [A, B], k: [["circle", 40, 40, 20, 20], ["triangle", 138, 40, 24, 22]], l: [link(A, B)],
+  A = ["square", 10, 30, 62, 62]; B = ["circle", 124, 6, 58, 58]
+  add("Agents & LLMs", "Retrieval", "(● ⊂ ■) — (▲ ⊂ ●)", "Knowledge pulled up from a store into the model that acts on it.", {
+    f: [A, B], k: [["circle", 31, 51, 20, 20], ["triangle", 141, 23, 24, 22]], l: [link(A, B)],
   })
   add("Agents & LLMs", "Agent", "(▲ ⊂ ●) / ■", "A model that acts, standing on the harness that runs it.", {
     f: [["circle", 74, 4, 52, 52], ["square", 66, 60, 68, 36]], k: [["triangle", 88, 18, 24, 22]],
   })
-  A = ["circle", 10, 26, 48, 48]; B = ["square", 92, 34, 32, 32]; C = ["circle", 160, 38, 24, 24]
-  add("Agents & LLMs", "Tool call", "(▲ ⊂ ●) — ■ — ●", "An agent reaches for a tool; a result comes back as signal.", {
-    f: [A, B, C], k: [["triangle", 22, 42, 24, 22]], l: [link(A, B), link(B, C)],
+  A = ["circle", 8, 10, 60, 60]; B = ["square", 92, 62, 28, 28]; C = ["circle", 156, 14, 22, 22]
+  add("Agents & LLMs", "Tool call", "(▲ ⊂ ●) — ■ — ●", "An agent reaches down for a tool; a result comes back up as signal.", {
+    f: [A, B, C], k: [["triangle", 26, 30, 24, 22]], l: [link(A, B), link(B, C)],
   })
-  A = ["circle", 20, 16, 68, 68]; B = ["triangle", 150, 6, 24, 22]; C = ["triangle", 150, 39, 24, 22]; D = ["triangle", 150, 72, 24, 22]
+  A = ["circle", 14, 20, 60, 60]; B = ["triangle", 112, 12, 22, 20]; C = ["triangle", 158, 32, 30, 28]; D = ["triangle", 110, 70, 24, 22]
   add("Agents & LLMs", "Fan-out", "(▲ ⊂ ●) — {▲, ▲, ▲}", "One agent splits the work and hands it to others.", {
-    f: [A, B, C, D], k: [["triangle", 40, 40, 28, 26]], l: [link(A, B), link(A, C), link(A, D)],
+    f: [A, B, C, D], k: [["triangle", 32, 42, 24, 22]], l: [link(A, B), link(A, C), link(A, D)],
   })
   A = ["circle", 90, 4, 20, 20]; B = ["square", 70, 40, 60, 56]
   add("Agents & LLMs", "Skill", "● | (▲ ⊂ ■)", "A named trigger, tethered to the packaged know-how it unlocks.", {
@@ -205,9 +205,9 @@ const TOPICS: Preset[] = (() => {
   add("Culture", "Commons", "{○, ○} × ●", "Shared ground, held by everyone who overlaps it.", {
     f: [["circle", 72, 22, 56, 56]], o: [["circle", 44, 22, 56, 56], ["circle", 100, 22, 56, 56]],
   })
-  A = ["circle", 10, 26, 48, 48]; B = ["circle", 92, 34, 32, 32]; C = ["circle", 160, 42, 16, 16]
+  A = ["circle", 8, 6, 56, 56]; B = ["circle", 92, 40, 30, 30]; C = ["circle", 156, 72, 16, 16]
   add("Culture", "Echo", "● — ● — ○", "An idea retold until only its outline remains.", { f: [A, B], o: [C], l: [link(A, B), link(B, C)] })
-  A = ["triangle", 20, 14, 56, 56]; B = ["circle", 152, 6, 22, 22]; C = ["circle", 152, 39, 22, 22]; D = ["circle", 152, 72, 22, 22]
+  A = ["triangle", 100, 4, 92, 90]; B = ["circle", 8, 8, 18, 18]; C = ["circle", 14, 62, 28, 28]; D = ["circle", 56, 40, 14, 14]
   add("Culture", "Movement", "▲ — {●, ●, ●}", "Many voices joined into one change.", {
     f: [A, B, C, D], l: [link(A, B), link(A, C), link(A, D)],
   })
