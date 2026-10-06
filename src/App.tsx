@@ -373,7 +373,7 @@ export default function App() {
               </p>
             </section>
 
-            <Card className="gap-0 py-0">
+            <Card className="min-w-0 gap-0 py-0">
               <Tabs value={tab} onValueChange={setTab} className="gap-0">
                 <div className="border-b p-3">
                   <TabsList className="w-full">

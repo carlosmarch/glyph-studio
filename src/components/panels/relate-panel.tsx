@@ -67,7 +67,7 @@ export function RelatePanel({ doc, selectedId, onApply, onUnlink }: RelatePanelP
           className="w-full"
         >
           {RELATIONS.map((r) => (
-            <ToggleGroupItem key={r} value={r} aria-label={RELATION_META[r].name} className="flex-col gap-0 py-1 h-auto">
+            <ToggleGroupItem key={r} value={r} aria-label={RELATION_META[r].name} className="h-auto min-w-0 shrink flex-col gap-0 px-1 py-1">
               <span className="font-mono text-base leading-tight">{RELATION_META[r].op}</span>
               <span className="text-[10px] leading-tight">{RELATION_META[r].name}</span>
             </ToggleGroupItem>
@@ -87,7 +87,7 @@ export function RelatePanel({ doc, selectedId, onApply, onUnlink }: RelatePanelP
         </AnimatePresence>
       </div>
 
-      <div className="grid grid-cols-[1fr_auto_1fr] items-end gap-2">
+      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2">
         <div className="grid gap-2">
           <Label htmlFor="rel-a">A</Label>
           {shapeSelect(a, setA, "rel-a", b)}
