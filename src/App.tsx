@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, MotionConfig, motion } from "motion/react"
 import {
   AlertTriangle,
@@ -14,6 +14,7 @@ import {
 } from "lucide-react"
 import { toast } from "sonner"
 
+import { FormulaField } from "@/components/formula-field"
 import { GlyphCanvas, type ShapeMove } from "@/components/glyph-canvas"
 import { PresetsPanel } from "@/components/panels/presets-panel"
 import { RelatePanel } from "@/components/panels/relate-panel"
@@ -98,6 +99,7 @@ export default function App() {
   const history = useHistory<Studio>(initialState())
   const { set: setHistory, undo, redo } = history
   const { doc, style } = history.value
+  const beforeFormula = useRef<Studio | null>(null)
   const [selection, setSelectedId] = useState<string | null>(null)
   const [showFrame, setShowFrame] = useState(true)
   const [tab, setTab] = useState("shape")
@@ -296,23 +298,25 @@ export default function App() {
                 />
               </Card>
 
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <div className="min-w-0" aria-live="polite">
-                  <p className="text-muted-foreground text-xs font-medium tracking-wide uppercase">Formula</p>
-                  <AnimatePresence mode="popLayout" initial={false}>
-                    <motion.p
-                      key={glyphFormula}
-                      initial={{ opacity: 0, y: 6, filter: "blur(4px)" }}
-                      animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-                      exit={{ opacity: 0, y: -6, filter: "blur(4px)" }}
-                      transition={{ duration: 0.2 }}
-                      className="font-mono text-2xl break-words [word-spacing:0.1em]"
-                    >
-                      {glyphFormula || "—"}
-                    </motion.p>
-                  </AnimatePresence>
-                </div>
+              <FormulaField
+                value={glyphFormula}
+                onStart={() => {
+                  beforeFormula.current = history.value
+                }}
+                onPreview={(next) => {
+                  setHistory((s) => ({ ...s, doc: next }), { transient: true })
+                  setSelectedId(null)
+                }}
+                onCommit={history.commit}
+                onCancel={() => {
+                  // Restore the exact state from before editing, so commit() records nothing.
+                  if (beforeFormula.current) setHistory(beforeFormula.current, { transient: true })
+                  history.commit()
+                  beforeFormula.current = null
+                }}
+              />
 
+              <div className="flex flex-wrap items-center justify-end gap-3">
                 <div className="flex items-center gap-2">
                   {KINDS.map((k) => (
                     <Tooltip key={k}>

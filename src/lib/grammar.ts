@@ -357,7 +357,9 @@ export function validate(doc: Doc): Issue[] {
     if (s.role === "ink" && !relations.some((r) => r.kind === "nest" && r.a === s.id)) {
       issues.push({ level: "warning", message: `Ink ${KIND_META[s.kind].name.toLowerCase()} isn't nested inside a body.` })
     }
-    if (s.role === "outline" && !relations.some((r) => r.kind === "overlap" && r.a === s.id)) {
+    // A linked outline is a hollow node (■ — ○ — ■: an empty, unwritten space), not a broken overlap.
+    const onALine = doc.links.some((l) => l.a === s.id || l.b === s.id)
+    if (s.role === "outline" && !onALine && !relations.some((r) => r.kind === "overlap" && r.a === s.id)) {
       issues.push({ level: "warning", message: `Outlined ${KIND_META[s.kind].name.toLowerCase()} doesn't overlap a body.` })
     }
   }

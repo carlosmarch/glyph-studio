@@ -29,6 +29,7 @@ Fill carries the shape, ink carries the relation. At most 5 shapes, inside a 200
 - **Style** — palettes (the reference, the portfolio pastels, Paper, Night), custom ground/fill/ink, hand-drawn wobble, ink stroke and wobble seed.
 - **Presets** — the 3 primitives, any of the 45 matrix pairs (9 ordered pairs × 5 relations), and the 12 reference compounds (Chain, Pillar, Totem, Core link, Branch, Hub, Shelter, Eclipse, Beacon, Lantern, Keystone, Relay).
 - **Live formula** — the glyph written in notation (`▲ | ■ · ○ × ■`), with the same rule checks the portfolio build runs.
+- **Type a formula** — click the formula and write one; the canvas builds it as you type. `Enter` keeps it, `Esc` puts the canvas back. An insert bar types the symbols for you, or use ASCII: `c t s` for shapes, `- / < x |` for relations. Group with `( )`, fan out with `{ }`, separate parts with `·` or `,`. Stack, nest, overlap and anchor bind tighter than connect: `● — ▲ / ■` reads as `● — (▲ / ■)`.
 - **Undo/redo**, keyboard nudging, and a **share link**: the whole glyph lives in the URL hash.
 - **Export** — download or copy SVG, or copy a ready-to-paste `glyphs.ts` entry.
 
@@ -61,6 +62,7 @@ Add more shadcn components with `npx shadcn@latest add <component>` — `compone
 ```
 src/
   lib/grammar.ts       model, relations, inference → formula, validation, GlyphSpec in/out
+  lib/formula.ts       formula parser + layout (notation → glyph)
   lib/presets.ts       palettes, primitives, matrix pairs, compounds
   lib/export.ts        SVG, glyphs.ts snippet, share-link encoding
   hooks/use-history.ts undo/redo with transient updates for dragging
