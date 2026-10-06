@@ -13,7 +13,6 @@ import {
   KIND_META,
   RELATION_META,
   RELATIONS,
-  shapeLabel,
   type Doc,
   type RelationKind,
 } from "@/lib/grammar"
@@ -41,14 +40,14 @@ export function RelatePanel({ doc, selectedId, onApply, onUnlink }: RelatePanelP
 
   const shapeSelect = (value: string, onChange: (v: string) => void, id: string, exclude?: string) => (
     <Select value={value} onValueChange={onChange} disabled={doc.shapes.length < 2}>
-      <SelectTrigger id={id} className="w-full">
+      <SelectTrigger id={id} className="w-full min-w-0 [&_[data-slot=select-value]]:truncate">
         <SelectValue placeholder="Pick a shape" />
       </SelectTrigger>
       <SelectContent>
         {doc.shapes.map((s) => (
           <SelectItem key={s.id} value={s.id} disabled={s.id === exclude}>
             <ShapeIcon kind={s.kind} role={s.role} />
-            {shapeLabel(doc, s)}
+            {doc.shapes.indexOf(s) + 1} · {KIND_META[s.kind].name}
           </SelectItem>
         ))}
       </SelectContent>
@@ -87,15 +86,26 @@ export function RelatePanel({ doc, selectedId, onApply, onUnlink }: RelatePanelP
         </AnimatePresence>
       </div>
 
-      <div className="grid grid-cols-[minmax(0,1fr)_auto_minmax(0,1fr)] items-end gap-2">
-        <div className="grid gap-2">
+      <div className="grid grid-cols-2 gap-2">
+        <div className="grid min-w-0 gap-2">
           <Label htmlFor="rel-a">A</Label>
           {shapeSelect(a, setA, "rel-a", b)}
         </div>
+        <div className="grid min-w-0 gap-2">
+          <Label htmlFor="rel-b">B</Label>
+          {shapeSelect(b, setB, "rel-b", a)}
+        </div>
+      </div>
+
+      <div className="flex gap-2">
+        <Button className="flex-1" onClick={() => canApply && onApply(kind, a, b)} disabled={!canApply}>
+          <Sparkles /> Relate A {RELATION_META[kind].op} B
+        </Button>
         <Button
-          variant="ghost"
+          variant="outline"
           size="icon"
           aria-label="Swap A and B"
+          title="Swap A and B"
           onClick={() => {
             setA(b)
             setB(a)
@@ -104,15 +114,7 @@ export function RelatePanel({ doc, selectedId, onApply, onUnlink }: RelatePanelP
         >
           <ArrowLeftRight />
         </Button>
-        <div className="grid gap-2">
-          <Label htmlFor="rel-b">B</Label>
-          {shapeSelect(b, setB, "rel-b", a)}
-        </div>
       </div>
-
-      <Button onClick={() => canApply && onApply(kind, a, b)} disabled={!canApply}>
-        <Sparkles /> Relate A {RELATION_META[kind].op} B
-      </Button>
       {doc.shapes.length < 2 && (
         <p className="text-muted-foreground text-xs">Relations need two shapes. Add another below the canvas.</p>
       )}
