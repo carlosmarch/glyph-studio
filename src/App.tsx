@@ -3,6 +3,7 @@ import { AnimatePresence, MotionConfig, motion } from "motion/react"
 import {
   AlertTriangle,
   Code2,
+  Dices,
   Copy,
   Download,
   Eraser,
@@ -18,8 +19,10 @@ import { toast } from "sonner"
 
 import { FormulaField } from "@/components/formula-field"
 import { GlyphCanvas, type ShapeMove } from "@/components/glyph-canvas"
+import { SaveDialog, type SaveDetails } from "@/components/save-dialog"
 import { PresetsPanel } from "@/components/panels/presets-panel"
 import { RelatePanel } from "@/components/panels/relate-panel"
+import { SavedPanel } from "@/components/panels/saved-panel"
 import { ShapePanel } from "@/components/panels/shape-panel"
 import { StylePanel } from "@/components/panels/style-panel"
 import { ShapeIcon } from "@/components/shape-icon"
@@ -38,6 +41,8 @@ import { Toaster } from "@/components/ui/sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useHistory } from "@/hooks/use-history"
+import { randomDoc } from "@/lib/formula"
+import { loadLibrary, newSavedId, storeLibrary, type SavedGlyph } from "@/lib/library"
 import { decodeState, download, encodeState, toSnippet, toSVG } from "@/lib/export"
 import {
   addShape,
@@ -68,24 +73,15 @@ interface Studio {
   style: Style
 }
 
-const SAVE_KEY = "glyph-studio:saved"
 const INITIAL: Studio = { doc: STARTER, style: DEFAULT_STYLE }
 
-function readSaved(): string | null {
-  try {
-    return window.localStorage.getItem(SAVE_KEY)
-  } catch {
-    return null
-  }
-}
-
-// A share link wins, then the last save, then the starter glyph.
-function initialState(): Studio {
+// A share link wins, then the latest save, then the starter glyph.
+function initialState(library: SavedGlyph[]): Studio {
   if (typeof window === "undefined") return INITIAL
   const shared = decodeState(window.location.hash)
   if (shared) return shared
-  const saved = readSaved()
-  return (saved && decodeState(saved)) || INITIAL
+  const latest = library.reduce<SavedGlyph | null>((a, g) => (!a || g.savedAt > a.savedAt ? g : a), null)
+  return (latest && decodeState(latest.state)) || INITIAL
 }
 
 function useDarkMode() {
@@ -113,7 +109,9 @@ function IconAction({ label, shortcut, children, ...props }: React.ComponentProp
 }
 
 export default function App() {
-  const history = useHistory<Studio>(initialState())
+  const [library, setLibrary] = useState(loadLibrary)
+  const [initial] = useState(() => initialState(library))
+  const history = useHistory<Studio>(initial)
   const { set: setHistory, undo, redo } = history
   const { doc, style } = history.value
   const beforeFormula = useRef<Studio | null>(null)
@@ -121,9 +119,12 @@ export default function App() {
   const [showFrame, setShowFrame] = useState(true)
   const [tab, setTab] = useState("shape")
   const [dark, setDark] = useDarkMode()
-  const [saved, setSaved] = useState(readSaved)
   const encoded = useMemo(() => encodeState({ doc, style }), [doc, style])
-  const dirty = encoded !== saved
+  // The saved glyph on the canvas: whichever save matches what was loaded at start.
+  const [activeId, setActiveId] = useState(() => library.find((g) => g.state === encoded)?.id ?? null)
+  const active = library.find((g) => g.id === activeId) ?? null
+  const dirty = !!active && encoded !== active.state
+  const [dialog, setDialog] = useState<{ mode: "save" | "edit"; glyph: SavedGlyph | null } | null>(null)
 
   // A selection that no longer exists (undo, preset load…) reads as none.
   const selectedId = selection && doc.shapes.some((s) => s.id === selection) ? selection : null
@@ -148,19 +149,77 @@ export default function App() {
     return () => window.clearTimeout(t)
   }, [encoded])
 
-  const save = useCallback(() => {
-    try {
-      window.localStorage.setItem(SAVE_KEY, encoded)
-      setSaved(encoded)
-      toast.success("Saved in this browser")
-    } catch {
+  const commitLibrary = (next: SavedGlyph[]) => {
+    if (!storeLibrary(next)) {
       toast.error("Couldn't save — browser storage is unavailable")
+      return false
     }
-  }, [encoded])
+    setLibrary(next)
+    return true
+  }
+
+  const onSaveDialog = ({ title, description }: SaveDetails, asNew: boolean) => {
+    const target = dialog?.glyph
+    setDialog(null)
+    if (dialog?.mode === "edit" && target) {
+      commitLibrary(library.map((g) => (g.id === target.id ? { ...g, title, description } : g)))
+      return
+    }
+    const glyph: SavedGlyph = { id: asNew || !target ? newSavedId() : target.id, title, description, state: encoded, savedAt: Date.now() }
+    const next = asNew || !target ? [...library, glyph] : library.map((g) => (g.id === glyph.id ? glyph : g))
+    if (commitLibrary(next)) {
+      setActiveId(glyph.id)
+      toast.success(`Saved “${title}”`)
+    }
+  }
+
+  // ⌘S updates the open save in place; otherwise it asks for a title.
+  const quickSave = () => {
+    if (!active) return setDialog({ mode: "save", glyph: null })
+    if (!dirty) return toast("Already saved")
+    if (commitLibrary(library.map((g) => (g.id === active.id ? { ...g, state: encoded, savedAt: Date.now() } : g)))) {
+      toast.success(`Saved “${active.title}”`)
+    }
+  }
+  const quickSaveRef = useRef(quickSave)
+  useEffect(() => {
+    quickSaveRef.current = quickSave
+  })
+
+  const openSaved = (glyph: SavedGlyph) => {
+    const state = decodeState(glyph.state)
+    if (!state) return
+    history.set(state)
+    setActiveId(glyph.id)
+    setSelectedId(null)
+    toast(`Opened “${glyph.title}”`)
+  }
+
+  const deleteSaved = (glyph: SavedGlyph) => {
+    const before = library
+    if (!commitLibrary(library.filter((g) => g.id !== glyph.id))) return
+    if (glyph.id === activeId) setActiveId(null)
+    toast(`Deleted “${glyph.title}”`, {
+      action: {
+        label: "Undo",
+        onClick: () => {
+          if (commitLibrary(before) && glyph.id === activeId) setActiveId(glyph.id)
+        },
+      },
+    })
+  }
+
+  const randomize = useCallback(() => {
+    const { doc: next, formula: f } = randomDoc()
+    setHistory((s) => ({ ...s, doc: next }))
+    setSelectedId(null)
+    toast(`Random glyph: ${f}`)
+  }, [setHistory])
 
   // Back to the starter glyph and default style, as one undoable step.
   const reset = () => {
     history.set(INITIAL)
+    setActiveId(null)
     setSelectedId(null)
     toast("Reset to the starter glyph", { action: { label: "Undo", onClick: history.undo } })
   }
@@ -212,11 +271,11 @@ export default function App() {
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       const target = e.target as HTMLElement
-      if (target.closest("input, textarea, [contenteditable=true]")) return
+      if (target.closest("input, textarea, [contenteditable=true], [role=dialog]")) return
       const mod = e.metaKey || e.ctrlKey
       if (mod && e.key.toLowerCase() === "s") {
         e.preventDefault()
-        save()
+        quickSaveRef.current()
         return
       }
       if (mod && e.key.toLowerCase() === "z") {
@@ -231,6 +290,11 @@ export default function App() {
         return
       }
       if (e.key === "Escape") setSelectedId(null)
+      if (!mod && !e.altKey && e.key.toLowerCase() === "r" && !target.closest("[role=menu]")) {
+        e.preventDefault()
+        randomize()
+        return
+      }
       if (!selectedId || target.closest("[role=slider], [role=listbox], [role=menu]")) return
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault()
@@ -254,7 +318,7 @@ export default function App() {
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [undo, redo, save, selectedId, remove, setDoc])
+  }, [undo, redo, randomize, selectedId, remove, setDoc])
 
   const copy = async (text: string, what: string) => {
     try {
@@ -300,13 +364,13 @@ export default function App() {
               </IconAction>
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <Button variant="outline" className="relative ml-2" onClick={save}>
+                  <Button variant="outline" className="relative ml-2" onClick={() => setDialog({ mode: "save", glyph: active })}>
                     <Save /> Save
                     {dirty && <span className="bg-primary absolute top-1 right-1 size-1.5 rounded-full" aria-label="Unsaved changes" />}
                   </Button>
                 </TooltipTrigger>
                 <TooltipContent>
-                  {dirty ? "Save in this browser" : "Saved"}
+                  {active ? (dirty ? `Unsaved changes to “${active.title}”` : `Saved as “${active.title}”`) : "Save with a title and description"}
                   <span className="ml-2 opacity-60">⌘S</span>
                 </TooltipContent>
               </Tooltip>
@@ -391,6 +455,9 @@ export default function App() {
                   <Badge variant={full ? "default" : "secondary"} className="tabular-nums">
                     {doc.shapes.length}/{MAX_SHAPES}
                   </Badge>
+                  <IconAction label="Random glyph" shortcut="R" onClick={randomize}>
+                    <Dices />
+                  </IconAction>
                   <IconAction
                     label="Clear canvas"
                     onClick={() => {
@@ -425,7 +492,7 @@ export default function App() {
 
               <p className="text-muted-foreground text-xs">
                 Drag shapes to move them · <kbd className="font-mono">←↑→↓</kbd> nudge (⇧ ×5) ·{" "}
-                <kbd className="font-mono">⌫</kbd> delete · <kbd className="font-mono">Esc</kbd> deselect. Relations:{" "}
+                <kbd className="font-mono">⌫</kbd> delete · <kbd className="font-mono">Esc</kbd> deselect · <kbd className="font-mono">R</kbd> random. Relations:{" "}
                 {(Object.keys(RELATION_META) as RelationKind[]).map((r) => `${RELATION_META[r].op} ${RELATION_META[r].name.toLowerCase()}`).join(" · ")}.
               </p>
             </section>
@@ -438,6 +505,10 @@ export default function App() {
                     <TabsTrigger value="relate">Relate</TabsTrigger>
                     <TabsTrigger value="style">Style</TabsTrigger>
                     <TabsTrigger value="presets">Presets</TabsTrigger>
+                    <TabsTrigger value="saved">
+                      Saved
+                      {library.length > 0 && <span className="text-muted-foreground text-xs tabular-nums">{library.length}</span>}
+                    </TabsTrigger>
                   </TabsList>
                 </div>
                 <div className="p-5">
@@ -477,6 +548,15 @@ export default function App() {
                   <TabsContent value="presets">
                     <PresetsPanel style={style} onLoad={loadPreset} />
                   </TabsContent>
+                  <TabsContent value="saved">
+                    <SavedPanel
+                      library={library}
+                      activeId={activeId}
+                      onOpen={openSaved}
+                      onEdit={(glyph) => setDialog({ mode: "edit", glyph })}
+                      onDelete={deleteSaved}
+                    />
+                  </TabsContent>
                 </div>
               </Tabs>
             </Card>
@@ -490,6 +570,14 @@ export default function App() {
             . Exports drop straight into the portfolio's <code className="font-mono">glyphs.ts</code>.
           </footer>
         </div>
+        <SaveDialog
+          open={!!dialog}
+          onOpenChange={(open) => !open && setDialog(null)}
+          current={dialog?.glyph ?? null}
+          mode={dialog?.mode ?? "save"}
+          suggestedTitle={glyphFormula || "Untitled glyph"}
+          onSave={onSaveDialog}
+        />
         <Toaster position="bottom-center" />
       </TooltipProvider>
     </MotionConfig>

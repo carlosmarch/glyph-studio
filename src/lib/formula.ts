@@ -15,7 +15,7 @@
  *
  * ASCII aliases for typing: c/o = circle, t/^ = triangle, s/# = square.
  */
-import { BOX_H, BOX_W, newId, type Doc, type Kind, type Link, type RelationKind, type Role, type Shape } from "./grammar"
+import { BOX_H, BOX_W, MAX_SHAPES, newId, validate, type Doc, type Kind, type Link, type RelationKind, type Role, type Shape } from "./grammar"
 
 // —— Tokens ——————————————————————————————————————————————————
 
@@ -467,3 +467,29 @@ export const FORMULA_KEYS: { key: string; label: string }[] = [
   { key: "}", label: "Close one-to-many" },
   { key: ", ", label: "Separator" },
 ]
+
+// —— Random glyphs ——————————————————————————————————————————————
+
+const pick = <T,>(xs: readonly T[], rand: () => number) => xs[Math.floor(rand() * xs.length)]
+const SYMBOLS = ["●", "▲", "■"] as const
+const OP_SYMBOLS = [" — ", " / ", " ⊂ ", " × ", " | "] as const
+
+/** A random 2–3 shape formula, e.g. `(▲ ⊂ ■) — ●`. */
+export function randomFormula(rand = Math.random): string {
+  const shape = () => pick(SYMBOLS, rand)
+  const op = () => pick(OP_SYMBOLS, rand)
+  if (rand() < 0.4) return `${shape()}${op()}${shape()}`
+  return rand() < 0.5 ? `(${shape()}${op()}${shape()})${op()}${shape()}` : `${shape()}${op()}(${shape()}${op()}${shape()})`
+}
+
+/** A random glyph that passes the grammar's rules (falls back to the last try). */
+export function randomDoc(rand = Math.random): { doc: Doc; formula: string } {
+  let last = { doc: { shapes: [], links: [] } as Doc, formula: "" }
+  for (let i = 0; i < 20; i++) {
+    const formula = randomFormula(rand)
+    const doc = formulaToDoc(formula)
+    last = { doc, formula }
+    if (doc.shapes.length && doc.shapes.length <= MAX_SHAPES && !validate(doc).length) return last
+  }
+  return last
+}
