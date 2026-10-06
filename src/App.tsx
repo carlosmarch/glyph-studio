@@ -3,6 +3,7 @@ import { AnimatePresence, MotionConfig, motion } from "motion/react"
 import {
   AlertTriangle,
   Code2,
+  Dices,
   Copy,
   Download,
   Eraser,
@@ -38,6 +39,7 @@ import { Toaster } from "@/components/ui/sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { useHistory } from "@/hooks/use-history"
+import { randomDoc } from "@/lib/formula"
 import { decodeState, download, encodeState, toSnippet, toSVG } from "@/lib/export"
 import {
   addShape,
@@ -158,6 +160,13 @@ export default function App() {
     }
   }, [encoded])
 
+  const randomize = useCallback(() => {
+    const { doc: next, formula: f } = randomDoc()
+    setHistory((s) => ({ ...s, doc: next }))
+    setSelectedId(null)
+    toast(`Random glyph: ${f}`)
+  }, [setHistory])
+
   // Back to the starter glyph and default style, as one undoable step.
   const reset = () => {
     history.set(INITIAL)
@@ -231,6 +240,11 @@ export default function App() {
         return
       }
       if (e.key === "Escape") setSelectedId(null)
+      if (!mod && !e.altKey && e.key.toLowerCase() === "r" && !target.closest("[role=menu]")) {
+        e.preventDefault()
+        randomize()
+        return
+      }
       if (!selectedId || target.closest("[role=slider], [role=listbox], [role=menu]")) return
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault()
@@ -254,7 +268,7 @@ export default function App() {
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [undo, redo, save, selectedId, remove, setDoc])
+  }, [undo, redo, save, randomize, selectedId, remove, setDoc])
 
   const copy = async (text: string, what: string) => {
     try {
@@ -391,6 +405,9 @@ export default function App() {
                   <Badge variant={full ? "default" : "secondary"} className="tabular-nums">
                     {doc.shapes.length}/{MAX_SHAPES}
                   </Badge>
+                  <IconAction label="Random glyph" shortcut="R" onClick={randomize}>
+                    <Dices />
+                  </IconAction>
                   <IconAction
                     label="Clear canvas"
                     onClick={() => {
@@ -425,7 +442,7 @@ export default function App() {
 
               <p className="text-muted-foreground text-xs">
                 Drag shapes to move them · <kbd className="font-mono">←↑→↓</kbd> nudge (⇧ ×5) ·{" "}
-                <kbd className="font-mono">⌫</kbd> delete · <kbd className="font-mono">Esc</kbd> deselect. Relations:{" "}
+                <kbd className="font-mono">⌫</kbd> delete · <kbd className="font-mono">Esc</kbd> deselect · <kbd className="font-mono">R</kbd> random. Relations:{" "}
                 {(Object.keys(RELATION_META) as RelationKind[]).map((r) => `${RELATION_META[r].op} ${RELATION_META[r].name.toLowerCase()}`).join(" · ")}.
               </p>
             </section>
