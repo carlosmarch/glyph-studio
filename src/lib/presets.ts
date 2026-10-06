@@ -47,7 +47,12 @@ export interface Preset {
   formula: string
   reading: string
   spec: GlyphSpec
+  /** Compounds only: the topic shelf it sits on in the Presets panel. */
+  theme?: CompoundTheme
 }
+
+export const COMPOUND_THEMES = ["Reference", "Design", "Code", "Systems", "Agents & LLMs", "Nature", "Culture"] as const
+export type CompoundTheme = (typeof COMPOUND_THEMES)[number]
 
 export const PRIMITIVES: Preset[] = [
   { name: "Circle", formula: "●", reading: "A signal. An idea, a topic, a point of attention.", spec: { f: [["circle", 72, 22, 56, 56]] } },
@@ -77,7 +82,7 @@ function chain(...shapes: SpecShape[]): GlyphSpec {
   return { f: shapes, l: shapes.slice(1).map((s, i) => link(shapes[i], s)) }
 }
 
-export const COMPOUNDS: Preset[] = (() => {
+const REFERENCE: Preset[] = (() => {
   let C: SpecShape, C2: SpecShape, S: SpecShape, T: SpecShape
   const out: Preset[] = []
   T = ["triangle", 10, 34, 34, 32]; C = ["circle", 84, 34, 32, 32]; S = ["square", 158, 34, 32, 32]
@@ -104,7 +109,111 @@ export const COMPOUNDS: Preset[] = (() => {
   out.push({ name: "Keystone", formula: "■ / (● ⊂ ▲)", reading: "A structure set on a change that contains a signal.", spec: { f: [S, T], k: [["circle", 90, 70, 20, 20]] } })
   T = ["triangle", 38, 6, 36, 34]; C = ["circle", 30, 44, 52, 52]; C2 = ["circle", 140, 54, 32, 32]
   out.push({ name: "Relay", formula: "(▲ / (▲ ⊂ ●)) — ●", reading: "A Beacon passing its signal on to the next.", spec: { f: [T, C, C2], k: [["triangle", 44, 58, 24, 22]], l: [link(C, C2)] } })
+  return out.map((p) => ({ ...p, theme: "Reference" as const }))
+})()
+
+/** Topic compounds — the same grammar applied to what the writing is about. */
+const TOPICS: Preset[] = (() => {
+  let A: SpecShape, B: SpecShape, C: SpecShape, D: SpecShape, E: SpecShape
+  const out: Preset[] = []
+  const add = (theme: CompoundTheme, name: string, formula: string, reading: string, spec: GlyphSpec) =>
+    out.push({ name, formula, reading, spec, theme })
+
+  // Design
+  A = ["circle", 22, 40, 20, 20]; B = ["square", 82, 36, 28, 28]; C = ["square", 146, 28, 44, 44]
+  add("Design", "Token tiers", "● — ■ — ■", "A raw value, aliased up: primitive, semantic, component.", chain(A, B, C))
+  A = ["circle", 10, 40, 20, 20]; B = ["square", 64, 30, 40, 40]; C = ["square", 138, 22, 56, 56]
+  add("Design", "Atomic", "● — (● ⊂ ■) — (■ ⊂ ■)", "Atom, molecule, organism. Each level frames the last.", {
+    f: [A, B, C], k: [["circle", 76, 42, 16, 16], ["square", 153, 37, 26, 26]], l: [link(A, B), link(B, C)],
+  })
+  add("Design", "Variant", "□ × (● ⊂ ■)", "One component and a variant drawn across it. Same core, shifted surface.", {
+    f: [["square", 92, 24, 52, 52]], o: [["square", 56, 24, 52, 52]], k: [["circle", 109, 41, 18, 18]],
+  })
+  add("Design", "Theming", "(○ × ●) / ■", "Two modes sharing one slot, set on the same structure.", {
+    f: [["circle", 90, 6, 40, 40], ["square", 62, 50, 76, 44]], o: [["circle", 70, 6, 40, 40]],
+  })
+  A = ["circle", 14, 34, 32, 32]; B = ["triangle", 83, 29, 34, 33]; C = ["square", 154, 34, 32, 32]
+  add("Design", "Draft", "○ — △ — ■", "Idea, sketch, build. The outlines turn solid only at the end.", { f: [C], o: [A, B], l: [link(A, B), link(B, C)] })
+  A = ["triangle", 16, 66, 20, 18]; B = ["triangle", 76, 54, 32, 30]; C = ["triangle", 140, 38, 48, 46]
+  add("Design", "Iteration", "▲ — ▲ — ▲", "Each pass builds on the last and climbs a little higher.", chain(A, B, C))
+
+  // Code
+  A = ["circle", 12, 40, 20, 20]; B = ["square", 72, 24, 56, 52]; C = ["circle", 168, 40, 20, 20]
+  add("Code", "Function", "● — (▲ ⊂ ■) — ●", "Input, a contained transformation, output.", {
+    f: [A, B, C], k: [["triangle", 88, 38, 24, 22]], l: [link(A, B), link(B, C)],
+  })
+  add("Code", "Dependencies", "■ / ■ / ■", "Each layer built on the one below. Pull one out and everything above moves.", {
+    f: [["square", 86, 4, 28, 24], ["square", 78, 31, 44, 28], ["square", 68, 62, 64, 34]],
+  })
+  A = ["triangle", 12, 31, 34, 30]; B = ["square", 84, 34, 32, 32]; C = ["circle", 158, 12, 24, 24]; D = ["circle", 158, 64, 24, 24]
+  add("Code", "Pub/sub", "▲ — ■ — {●, ●}", "One event, broadcast through a channel to everyone listening.", {
+    f: [A, B, C, D], l: [link(A, B), link(B, C), link(B, D)],
+  })
+
+  // Systems
+  A = ["triangle", 16, 31, 32, 30]; B = ["square", 72, 22, 56, 56]; C = ["triangle", 152, 31, 32, 30]
+  add("Systems", "Stock & flow", "▲ — ■ — ▲", "Inflow, a stock that accumulates, outflow.", chain(A, B, C))
+  A = ["triangle", 82, 6, 36, 32]; B = ["circle", 128, 58, 32, 32]; C = ["square", 40, 58, 32, 32]
+  add("Systems", "Feedback", "▲ — ● — ■ — ▲", "Action makes a signal, the signal reshapes structure, structure steers the next action.", {
+    f: [A, B, C], l: [link(A, B), link(B, C), link(C, A)],
+  })
+  A = ["square", 10, 28, 44, 44]; B = ["square", 84, 34, 32, 32]; C = ["square", 146, 28, 44, 44]
+  add("Systems", "Interface", "■ — □ — ■", "Two systems meeting at a contract neither of them owns.", { f: [A, C], o: [B], l: [link(A, B), link(B, C)] })
+  add("Systems", "Platform", "{▲, ▲, ▲} / ■", "Many products standing on one shared base.", {
+    f: [["triangle", 34, 30, 32, 30], ["triangle", 84, 30, 32, 30], ["triangle", 134, 30, 32, 30], ["square", 20, 63, 160, 32]],
+  })
+  A = ["square", 8, 38, 24, 24]; B = ["triangle", 48, 35, 24, 23]; C = ["square", 88, 38, 24, 24]; D = ["triangle", 128, 35, 24, 23]; E = ["circle", 166, 36, 28, 28]
+  add("Systems", "Pipeline", "■ — ▲ — ■ — ▲ — ●", "Store, transform, store, transform, until it surfaces as insight.", chain(A, B, C, D, E))
+
+  // Agents & LLMs
+  A = ["square", 14, 39, 22, 22]; B = ["square", 62, 39, 22, 22]; C = ["square", 110, 39, 22, 22]; D = ["circle", 156, 36, 28, 28]
+  add("Agents & LLMs", "Next token", "■ — ■ — ■ — ○", "The tokens laid down so far, and the unwritten one the model predicts next.", { f: [A, B, C], o: [D], l: [link(A, B), link(B, C), link(C, D)] })
+  add("Agents & LLMs", "Context window", "{●, ●, ▲} ⊂ ■", "Everything the model can see at once, held in one frame.", {
+    f: [["square", 30, 18, 140, 64]], k: [["circle", 52, 38, 24, 24], ["circle", 88, 38, 24, 24], ["triangle", 124, 37, 26, 24]],
+  })
+  A = ["square", 22, 22, 56, 56]; B = ["circle", 122, 22, 56, 56]
+  add("Agents & LLMs", "Retrieval", "(● ⊂ ■) — (▲ ⊂ ●)", "Knowledge pulled from a store into the model that acts on it.", {
+    f: [A, B], k: [["circle", 40, 40, 20, 20], ["triangle", 138, 40, 24, 22]], l: [link(A, B)],
+  })
+  add("Agents & LLMs", "Agent", "(▲ ⊂ ●) / ■", "A model that acts, standing on the harness that runs it.", {
+    f: [["circle", 74, 4, 52, 52], ["square", 66, 60, 68, 36]], k: [["triangle", 88, 18, 24, 22]],
+  })
+  A = ["circle", 10, 26, 48, 48]; B = ["square", 92, 34, 32, 32]; C = ["circle", 160, 38, 24, 24]
+  add("Agents & LLMs", "Tool call", "(▲ ⊂ ●) — ■ — ●", "An agent reaches for a tool; a result comes back as signal.", {
+    f: [A, B, C], k: [["triangle", 22, 42, 24, 22]], l: [link(A, B), link(B, C)],
+  })
+  A = ["circle", 20, 16, 68, 68]; B = ["triangle", 150, 6, 24, 22]; C = ["triangle", 150, 39, 24, 22]; D = ["triangle", 150, 72, 24, 22]
+  add("Agents & LLMs", "Fan-out", "(▲ ⊂ ●) — {▲, ▲, ▲}", "One agent splits the work and hands it to others.", {
+    f: [A, B, C, D], k: [["triangle", 40, 40, 28, 26]], l: [link(A, B), link(A, C), link(A, D)],
+  })
+  A = ["circle", 90, 4, 20, 20]; B = ["square", 70, 40, 60, 56]
+  add("Agents & LLMs", "Skill", "● | (▲ ⊂ ■)", "A named trigger, tethered to the packaged know-how it unlocks.", {
+    f: [A, B], k: [["triangle", 88, 54, 24, 22]], l: [link(A, B)],
+  })
+
+  // Nature
+  add("Nature", "Sprout", "▲ / (● ⊂ ■)", "A shoot rising from a seed held in the ground.", {
+    f: [["triangle", 84, 8, 32, 30], ["square", 60, 41, 80, 54]], k: [["circle", 90, 58, 20, 20]],
+  })
+  add("Nature", "Pine", "▲ / ▲ / ■", "Growth layered on growth, rooted in one trunk.", {
+    f: [["triangle", 84, 4, 32, 28], ["triangle", 74, 35, 52, 40], ["square", 92, 78, 16, 18]],
+  })
+  A = ["circle", 22, 62, 16, 16]; B = ["circle", 62, 14, 20, 20]; C = ["circle", 150, 22, 14, 14]; D = ["circle", 122, 70, 18, 18]
+  add("Nature", "Constellation", "● — ● — ● — ● — ●", "Separate lights, read together as one closed figure.", { ...chain(A, B, C, D), l: [...chain(A, B, C, D).l!, link(D, A)] })
+
+  // Culture
+  add("Culture", "Commons", "{○, ○} × ●", "Shared ground, held by everyone who overlaps it.", {
+    f: [["circle", 72, 22, 56, 56]], o: [["circle", 44, 22, 56, 56], ["circle", 100, 22, 56, 56]],
+  })
+  A = ["circle", 10, 26, 48, 48]; B = ["circle", 92, 34, 32, 32]; C = ["circle", 160, 42, 16, 16]
+  add("Culture", "Echo", "● — ● — ○", "An idea retold until only its outline remains.", { f: [A, B], o: [C], l: [link(A, B), link(B, C)] })
+  A = ["triangle", 20, 14, 56, 56]; B = ["circle", 152, 6, 22, 22]; C = ["circle", 152, 39, 22, 22]; D = ["circle", 152, 72, 22, 22]
+  add("Culture", "Movement", "▲ — {●, ●, ●}", "Many voices joined into one change.", {
+    f: [A, B, C, D], l: [link(A, B), link(A, C), link(A, D)],
+  })
   return out
 })()
+
+export const COMPOUNDS: Preset[] = [...REFERENCE, ...TOPICS]
 
 export const STARTER: Doc = fromSpec(COMPOUNDS[7].spec)

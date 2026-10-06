@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label"
 import { Separator } from "@/components/ui/separator"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { fromSpec, KIND_META, KINDS, RELATION_META, RELATIONS, type Doc, type Kind, type RelationKind } from "@/lib/grammar"
-import { COMPOUNDS, pairSpec, PRIMITIVES, type Preset, type Style } from "@/lib/presets"
+import { COMPOUND_THEMES, COMPOUNDS, pairSpec, PRIMITIVES, type CompoundTheme, type Preset, type Style } from "@/lib/presets"
 
 interface PresetsPanelProps {
   style: Style
@@ -52,6 +52,11 @@ export function PresetsPanel({ style, onLoad }: PresetsPanelProps) {
   const [a, setA] = useState<Kind>("triangle")
   const [rel, setRel] = useState<RelationKind>("stack")
   const [b, setB] = useState<Kind>("square")
+  const [theme, setTheme] = useState<CompoundTheme | "All">("All")
+  const shelves = (theme === "All" ? COMPOUND_THEMES : [theme]).map((t) => ({
+    theme: t,
+    presets: COMPOUNDS.filter((p) => p.theme === t),
+  }))
   const pair = useMemo(() => fromSpec(pairSpec(rel, a, b)), [rel, a, b])
   const pairFormula = `${rel === "overlap" ? KIND_META[a].hollow : KIND_META[a].symbol} ${RELATION_META[rel].op} ${KIND_META[b].symbol}`
 
@@ -132,11 +137,32 @@ export function PresetsPanel({ style, onLoad }: PresetsPanelProps) {
             A finished glyph behaves like a single shape, so relations chain into larger glyphs.
           </p>
         </div>
-        <div className="grid grid-cols-2 gap-4">
-          {COMPOUNDS.map((p) => (
-            <PresetTile key={p.name} preset={p} style={style} onLoad={onLoad} />
+        <div className="flex flex-wrap gap-1" role="group" aria-label="Compound topics">
+          {(["All", ...COMPOUND_THEMES] as const).map((t) => (
+            <Button
+              key={t}
+              size="sm"
+              variant={theme === t ? "secondary" : "ghost"}
+              aria-pressed={theme === t}
+              onClick={() => setTheme(t)}
+              className="h-7 px-2.5 text-xs"
+            >
+              {t}
+            </Button>
           ))}
         </div>
+        {shelves.map((shelf) => (
+          <div key={shelf.theme} className="grid gap-3">
+            {theme === "All" && (
+              <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">{shelf.theme}</span>
+            )}
+            <div className="grid grid-cols-2 gap-4">
+              {shelf.presets.map((p) => (
+                <PresetTile key={p.name} preset={p} style={style} onLoad={onLoad} />
+              ))}
+            </div>
+          </div>
+        ))}
       </div>
     </div>
   )
