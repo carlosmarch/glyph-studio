@@ -52,6 +52,8 @@ npm run build    # typecheck + production build to dist/
 npm run lint
 ```
 
+Deploys on Netlify as-is: `netlify.toml` sets the build command, `dist/` as the publish folder and Node 22. Import the repo in Netlify and keep the defaults.
+
 Add more shadcn components with `npx shadcn@latest add <component>` — `components.json` is set up.
 
 ## Layout
