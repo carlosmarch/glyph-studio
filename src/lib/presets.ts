@@ -51,7 +51,7 @@ export interface Preset {
   theme?: CompoundTheme
 }
 
-export const COMPOUND_THEMES = ["Reference", "Design", "Code", "Systems", "Agents & LLMs", "Nature", "Culture"] as const
+export const COMPOUND_THEMES = ["Reference", "Design", "Code", "Systems", "Agents & LLMs", "Writing", "Research", "Nature", "Culture"] as const
 export type CompoundTheme = (typeof COMPOUND_THEMES)[number]
 
 export const PRIMITIVES: Preset[] = [
@@ -189,6 +189,47 @@ const TOPICS: Preset[] = (() => {
   A = ["circle", 90, 4, 20, 20]; B = ["square", 70, 40, 60, 56]
   add("Agents & LLMs", "Skill", "● | (▲ ⊂ ■)", "A named trigger, tethered to the packaged know-how it unlocks.", {
     f: [A, B], k: [["triangle", 88, 54, 24, 22]], l: [link(A, B)],
+  })
+
+  // Writing
+  A = ["square", 10, 12, 36, 36]; B = ["square", 80, 4, 22, 22]; C = ["square", 120, 38, 22, 22]; D = ["square", 90, 72, 22, 22]
+  add("Writing", "Outline", "■ — {■, ■, ■}", "One idea, broken into points down the page.", {
+    f: [A, B, C, D], l: [link(A, B), link(A, C), link(A, D)],
+  })
+  A = ["circle", 92, 2, 16, 16]; B = ["square", 78, 38, 44, 26]
+  add("Writing", "Thesis", "● | (■ / ■)", "A claim, held up by the arguments stacked beneath it.", {
+    f: [A, B, ["square", 66, 67, 68, 28]], l: [link(A, B)],
+  })
+  A = ["circle", 10, 62, 24, 24]; B = ["triangle", 70, 6, 60, 56]; C = ["circle", 166, 70, 18, 18]
+  add("Writing", "Story arc", "● — ▲ — ●", "A setup, a turn, a resolution.", chain(A, B, C))
+  A = ["square", 8, 22, 72, 72]; B = ["square", 146, 10, 36, 36]
+  add("Writing", "Citation", "(● ⊂ ■) — ■", "A point in the text, tied to the source it stands on.", {
+    f: [A, B], k: [["circle", 22, 36, 18, 18]], l: [link(A, B)],
+  })
+  add("Writing", "Revision", "{□, □} × ■", "Earlier drafts still showing under the final page.", {
+    f: [["square", 84, 8, 70, 70]], o: [["square", 40, 34, 52, 52], ["square", 58, 22, 58, 58]],
+  })
+  A = ["square", 14, 50, 30, 30]; B = ["square", 70, 8, 22, 22]; C = ["square", 150, 16, 36, 36]; D = ["square", 108, 66, 24, 24]
+  add("Writing", "Linked notes", "■ — ■ — ■ — ■ — ■", "Small notes, linked until they close into a web of thought.", {
+    f: [A, B, C, D], l: [link(A, B), link(B, C), link(C, D), link(D, A)],
+  })
+
+  // Research
+  A = ["circle", 10, 10, 28, 28]; B = ["triangle", 72, 46, 40, 40]; C = ["circle", 140, 14, 48, 48]
+  add("Research", "Experiment", "○ — ▲ — ●", "A hollow guess, put to the test, comes out as a solid finding.", { f: [B, C], o: [A], l: [link(A, B), link(B, C)] })
+  A = ["circle", 118, 16, 64, 64]; B = ["square", 8, 8, 20, 20]; C = ["square", 34, 44, 26, 26]; D = ["square", 10, 76, 16, 16]
+  add("Research", "Synthesis", "● — {■, ■, ■}", "Many sources, condensed into one insight.", {
+    f: [A, B, C, D], l: [link(A, B), link(A, C), link(A, D)],
+  })
+  A = ["circle", 90, 40, 20, 20]; B = ["square", 20, 8, 30, 30]; C = ["triangle", 148, 6, 36, 32]; D = ["circle", 88, 72, 24, 24]
+  add("Research", "Triangulation", "● — {■, ▲, ●}", "Three different methods converging on one finding.", {
+    f: [A, B, C, D], l: [link(A, B), link(A, C), link(A, D)],
+  })
+  A = ["circle", 8, 4, 44, 44]; B = ["circle", 78, 40, 28, 28]; C = ["circle", 148, 74, 16, 16]
+  add("Research", "Rabbit hole", "○ — ○ — ●", "Each question opens a narrower one, until something solid turns up.", { f: [C], o: [A, B], l: [link(A, B), link(B, C)] })
+  A = ["circle", 70, 4, 18, 18]; B = ["circle", 112, 8, 14, 14]; C = ["square", 64, 44, 72, 52]
+  add("Research", "Peer review", "{●, ●} | ■", "A finished piece, under the eyes of others.", {
+    f: [A, B, C], l: [link(A, C), link(B, C)],
   })
 
   // Nature
