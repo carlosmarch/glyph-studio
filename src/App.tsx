@@ -9,6 +9,8 @@ import {
   Link2,
   Moon,
   Redo2,
+  RotateCcw,
+  Save,
   Sun,
   Undo2,
 } from "lucide-react"
@@ -66,9 +68,24 @@ interface Studio {
   style: Style
 }
 
+const SAVE_KEY = "glyph-studio:saved"
+const INITIAL: Studio = { doc: STARTER, style: DEFAULT_STYLE }
+
+function readSaved(): string | null {
+  try {
+    return window.localStorage.getItem(SAVE_KEY)
+  } catch {
+    return null
+  }
+}
+
+// A share link wins, then the last save, then the starter glyph.
 function initialState(): Studio {
-  const shared = typeof window !== "undefined" ? decodeState(window.location.hash) : null
-  return shared ?? { doc: STARTER, style: DEFAULT_STYLE }
+  if (typeof window === "undefined") return INITIAL
+  const shared = decodeState(window.location.hash)
+  if (shared) return shared
+  const saved = readSaved()
+  return (saved && decodeState(saved)) || INITIAL
 }
 
 function useDarkMode() {
@@ -104,6 +121,9 @@ export default function App() {
   const [showFrame, setShowFrame] = useState(true)
   const [tab, setTab] = useState("shape")
   const [dark, setDark] = useDarkMode()
+  const [saved, setSaved] = useState(readSaved)
+  const encoded = useMemo(() => encodeState({ doc, style }), [doc, style])
+  const dirty = encoded !== saved
 
   // A selection that no longer exists (undo, preset load…) reads as none.
   const selectedId = selection && doc.shapes.some((s) => s.id === selection) ? selection : null
@@ -123,10 +143,27 @@ export default function App() {
   // Keep the share link current.
   useEffect(() => {
     const t = window.setTimeout(() => {
-      window.history.replaceState(null, "", `#g=${encodeState({ doc, style })}`)
+      window.history.replaceState(null, "", `#g=${encoded}`)
     }, 250)
     return () => window.clearTimeout(t)
-  }, [doc, style])
+  }, [encoded])
+
+  const save = useCallback(() => {
+    try {
+      window.localStorage.setItem(SAVE_KEY, encoded)
+      setSaved(encoded)
+      toast.success("Saved in this browser")
+    } catch {
+      toast.error("Couldn't save — browser storage is unavailable")
+    }
+  }, [encoded])
+
+  // Back to the starter glyph and default style, as one undoable step.
+  const reset = () => {
+    history.set(INITIAL)
+    setSelectedId(null)
+    toast("Reset to the starter glyph", { action: { label: "Undo", onClick: history.undo } })
+  }
 
   const add = (kind: Kind) => {
     if (full) return
@@ -177,6 +214,11 @@ export default function App() {
       const target = e.target as HTMLElement
       if (target.closest("input, textarea, [contenteditable=true]")) return
       const mod = e.metaKey || e.ctrlKey
+      if (mod && e.key.toLowerCase() === "s") {
+        e.preventDefault()
+        save()
+        return
+      }
       if (mod && e.key.toLowerCase() === "z") {
         e.preventDefault()
         if (e.shiftKey) redo()
@@ -212,7 +254,7 @@ export default function App() {
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [undo, redo, selectedId, remove, setDoc])
+  }, [undo, redo, save, selectedId, remove, setDoc])
 
   const copy = async (text: string, what: string) => {
     try {
@@ -250,10 +292,25 @@ export default function App() {
               <IconAction label="Redo" shortcut="⇧⌘Z" onClick={history.redo} disabled={!history.canRedo}>
                 <Redo2 />
               </IconAction>
+              <IconAction label="Reset to initial state" onClick={reset} disabled={history.value === INITIAL}>
+                <RotateCcw />
+              </IconAction>
               <IconAction label={dark ? "Light mode" : "Dark mode"} onClick={() => setDark(!dark)}>
                 {dark ? <Sun /> : <Moon />}
               </IconAction>
-              <Button variant="outline" className="ml-2" onClick={() => copy(window.location.href, "Share link")}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" className="relative ml-2" onClick={save}>
+                    <Save /> Save
+                    {dirty && <span className="bg-primary absolute top-1 right-1 size-1.5 rounded-full" aria-label="Unsaved changes" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {dirty ? "Save in this browser" : "Saved"}
+                  <span className="ml-2 opacity-60">⌘S</span>
+                </TooltipContent>
+              </Tooltip>
+              <Button variant="outline" onClick={() => copy(window.location.href, "Share link")}>
                 <Link2 /> Share
               </Button>
               <DropdownMenu>
