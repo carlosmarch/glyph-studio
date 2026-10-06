@@ -1,8 +1,8 @@
-# Glyph Studio
+# Glyph System Studio
 
 Compose glyphs from three shapes and five relations, and watch them render live.
 
-Glyph Studio is a standalone editor for the shape grammar behind the writing glyphs on [carlosmarch.es](https://carlosmarch.es/playground/shape-grammar). Add shapes, relate them, drag them around, restyle them. The formula is read back from the canvas as you work, and the result exports as SVG or as an entry for the portfolio's `glyphs.ts`.
+Glyph System Studio is a standalone editor for the shape grammar behind the writing glyphs on [carlosmarch.es](https://carlosmarch.es/playground/shape-grammar). Add shapes, relate them, drag them around, restyle them. The formula is read back from the canvas as you work, and the result exports as SVG or as an entry for the portfolio's `glyphs.ts`.
 
 ## The grammar
 

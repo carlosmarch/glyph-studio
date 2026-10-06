@@ -238,7 +238,7 @@ export default function App() {
                 </svg>
               </span>
               <div>
-                <h1 className="text-lg leading-tight font-semibold">Glyph Studio</h1>
+                <h1 className="text-lg leading-tight font-semibold">Glyph System Studio</h1>
                 <p className="text-muted-foreground text-sm">Three shapes. Five ways to relate.</p>
               </div>
             </div>
