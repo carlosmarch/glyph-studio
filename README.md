@@ -38,7 +38,7 @@ Laid out like Figma:
 - **Relate** — pick A, a relation and B. B stays put and A is re-placed so the pair reads as that relation. The panel lists every relation the grammar reads off the canvas.
 - **Style** — palettes (the reference, the portfolio pastels, Paper, Night), custom ground/fill/ink, hand-drawn wobble, ink stroke and wobble seed.
 - **Presets** — the 3 primitives, any of the 45 matrix pairs (9 ordered pairs × 5 relations), the 12 reference compounds (Chain, Pillar, Totem, Core link, Branch, Hub, Shelter, Eclipse, Beacon, Lantern, Keystone, Relay), and 38 topic compounds shelved by theme — Design (token tiers, atomic design, theming…), Code, Systems, Agents & LLMs (context window, retrieval, tool call, skill…), Writing (outline, thesis, citation, revision…), Research (experiment, synthesis, triangulation…), Nature and Culture. Filter the shelf by topic.
-- **Live formula** — the glyph written in notation (`▲ | ■ · ○ × ■`), with the same rule checks the portfolio build runs.
+- **Live formula** — the glyph written in notation and grouped the way you type it (`▲ | (○ × ■) — ●`), with the same rule checks the portfolio build runs.
 - **Type a formula** — click the formula and write one; the canvas builds it as you type. `Enter` keeps it, `Esc` puts the canvas back. An insert bar types the symbols for you, or use ASCII: `c t s` for shapes, `- / < x |` for relations. Group with `( )`, fan out with `{ }`, separate parts with `·` or `,`. Stack, nest, overlap and anchor bind tighter than connect: `● — ▲ / ■` reads as `● — (▲ / ■)`.
 - **Undo/redo**, keyboard nudging, and a **share link**: the whole glyph lives in the URL hash.
 - **Export** — download or copy SVG, or copy a ready-to-paste `glyphs.ts` entry.
