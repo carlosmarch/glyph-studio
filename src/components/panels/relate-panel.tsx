@@ -2,11 +2,11 @@ import { AnimatePresence, motion } from "motion/react"
 import { ArrowLeftRight, Link2Off, Sparkles } from "lucide-react"
 import { useState } from "react"
 
+import { PanelSection } from "@/components/panels/panel-section"
 import { ShapeIcon } from "@/components/shape-icon"
 import { Button } from "@/components/ui/button"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Separator } from "@/components/ui/separator"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import {
   inferRelations,
@@ -55,9 +55,9 @@ export function RelatePanel({ doc, selectedId, onApply, onUnlink }: RelatePanelP
   )
 
   return (
-    <div className="grid gap-5">
+    <>
+      <PanelSection title="Relation">
       <div className="grid gap-2">
-        <Label>Relation</Label>
         <ToggleGroup
           type="single"
           variant="outline"
@@ -86,24 +86,25 @@ export function RelatePanel({ doc, selectedId, onApply, onUnlink }: RelatePanelP
         </AnimatePresence>
       </div>
 
-      <div className="grid grid-cols-2 gap-2">
+      <div className="grid grid-cols-2 gap-2 [&_[data-slot=select-trigger]]:h-8">
         <div className="grid min-w-0 gap-2">
-          <Label htmlFor="rel-a">A</Label>
+          <Label htmlFor="rel-a" className="text-muted-foreground text-xs font-normal">A</Label>
           {shapeSelect(a, setA, "rel-a", b)}
         </div>
         <div className="grid min-w-0 gap-2">
-          <Label htmlFor="rel-b">B</Label>
+          <Label htmlFor="rel-b" className="text-muted-foreground text-xs font-normal">B</Label>
           {shapeSelect(b, setB, "rel-b", a)}
         </div>
       </div>
 
       <div className="flex gap-2">
-        <Button className="flex-1" onClick={() => canApply && onApply(kind, a, b)} disabled={!canApply}>
+        <Button size="sm" className="flex-1" onClick={() => canApply && onApply(kind, a, b)} disabled={!canApply}>
           <Sparkles /> Relate A {RELATION_META[kind].op} B
         </Button>
         <Button
           variant="outline"
           size="icon"
+          className="size-8"
           aria-label="Swap A and B"
           title="Swap A and B"
           onClick={() => {
@@ -116,13 +117,11 @@ export function RelatePanel({ doc, selectedId, onApply, onUnlink }: RelatePanelP
         </Button>
       </div>
       {doc.shapes.length < 2 && (
-        <p className="text-muted-foreground text-xs">Relations need two shapes. Add another below the canvas.</p>
+        <p className="text-muted-foreground text-xs">Relations need two shapes. Add another from the toolbar.</p>
       )}
+      </PanelSection>
 
-      <Separator />
-
-      <div className="grid gap-2">
-        <Label>Read from the canvas</Label>
+      <PanelSection title="Read from the canvas">
         {relations.length ? (
           <ul className="grid gap-1.5">
             <AnimatePresence initial={false}>
@@ -137,7 +136,7 @@ export function RelatePanel({ doc, selectedId, onApply, onUnlink }: RelatePanelP
                     initial={{ opacity: 0, x: -6 }}
                     animate={{ opacity: 1, x: 0 }}
                     exit={{ opacity: 0, x: 6 }}
-                    className="bg-muted/60 flex items-center justify-between gap-2 rounded-md px-3 py-1.5 text-sm"
+                    className="bg-muted/60 flex items-center justify-between gap-2 rounded-md px-2.5 py-1 text-sm"
                   >
                     <span>
                       <span className="font-mono">
@@ -158,9 +157,9 @@ export function RelatePanel({ doc, selectedId, onApply, onUnlink }: RelatePanelP
             </AnimatePresence>
           </ul>
         ) : (
-          <p className="text-muted-foreground text-sm">No relations yet — the shapes stand alone.</p>
+          <p className="text-muted-foreground text-xs">No relations yet — the shapes stand alone.</p>
         )}
-      </div>
-    </div>
+      </PanelSection>
+    </>
   )
 }

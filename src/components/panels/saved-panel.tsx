@@ -3,8 +3,8 @@ import { motion } from "motion/react"
 import { Pencil, Trash2 } from "lucide-react"
 
 import { StaticGlyph } from "@/components/glyph-canvas"
+import { PanelSection } from "@/components/panels/panel-section"
 import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
 import { decodeState } from "@/lib/export"
 import { formula } from "@/lib/grammar"
 import type { SavedGlyph } from "@/lib/library"
@@ -24,7 +24,7 @@ function SavedTile({ glyph, active, onOpen, onEdit, onDelete }: { glyph: SavedGl
   const state = useMemo(() => decodeState(glyph.state), [glyph.state])
   if (!state) return null
   return (
-    <li className={cn("grid grid-cols-[96px_minmax(0,1fr)] gap-3 rounded-lg p-2", active && "bg-muted")}>
+    <li className={cn("grid grid-cols-[80px_minmax(0,1fr)] gap-3 rounded-lg p-2", active && "bg-muted")}>
       <motion.button
         type="button"
         whileHover={{ y: -2 }}
@@ -63,18 +63,14 @@ function SavedTile({ glyph, active, onOpen, onEdit, onDelete }: { glyph: SavedGl
 export function SavedPanel({ library, activeId, ...actions }: SavedPanelProps) {
   if (!library.length) {
     return (
-      <div className="grid gap-1 py-6 text-center">
-        <Label className="justify-center">Nothing saved yet</Label>
-        <p className="text-muted-foreground text-xs">Press Save (⌘S) to keep a glyph here with a title and description.</p>
-      </div>
+      <PanelSection title="Saved">
+        <p className="text-muted-foreground text-xs">Nothing saved yet. Press Save (⌘S) to keep a glyph here with a title and description.</p>
+      </PanelSection>
     )
   }
   return (
-    <div className="grid gap-3">
-      <div>
-        <Label>Saved glyphs</Label>
-        <p className="text-muted-foreground mt-1 text-xs">Kept in this browser only. Click one to open it.</p>
-      </div>
+    <PanelSection title="Saved" actions={<span className="text-muted-foreground pr-2 text-xs tabular-nums">{library.length}</span>}>
+      <p className="text-muted-foreground text-xs">Kept in this browser only. Click one to open it.</p>
       <ul className="-mx-2 grid gap-1">
         {[...library]
           .sort((a, b) => b.savedAt - a.savedAt)
@@ -82,6 +78,6 @@ export function SavedPanel({ library, activeId, ...actions }: SavedPanelProps) {
             <SavedTile key={g.id} glyph={g} active={g.id === activeId} {...actions} />
           ))}
       </ul>
-    </div>
+    </PanelSection>
   )
 }
