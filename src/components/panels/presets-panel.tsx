@@ -14,17 +14,7 @@ interface PresetsPanelProps {
   onLoad: (doc: Doc, name: string) => void
 }
 
-function PresetTile({
-  preset,
-  style,
-  onLoad,
-  compact = false,
-}: {
-  preset: Preset
-  style: Style
-  onLoad: (doc: Doc, name: string) => void
-  compact?: boolean
-}) {
+function PresetTile({ preset, style, onLoad }: { preset: Preset; style: Style; onLoad: (doc: Doc, name: string) => void }) {
   const doc = useMemo(() => fromSpec(preset.spec), [preset])
   return (
     <motion.button
@@ -43,8 +33,31 @@ function PresetTile({
         <span className="truncate text-xs font-medium">{preset.name}</span>
         <span className="text-muted-foreground shrink-0 font-mono text-[10px]">{preset.formula}</span>
       </span>
-      {!compact && <span className="text-muted-foreground text-xs leading-snug">{preset.reading}</span>}
     </motion.button>
+  )
+}
+
+// A compound as a list row, like a saved glyph: thumbnail, then name, formula and reading.
+function CompoundRow({ preset, style, onLoad }: { preset: Preset; style: Style; onLoad: (doc: Doc, name: string) => void }) {
+  const doc = useMemo(() => fromSpec(preset.spec), [preset])
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => onLoad(fromSpec(preset.spec), preset.name)}
+        className="hover:bg-muted grid w-full grid-cols-[72px_minmax(0,1fr)] gap-3 rounded-lg p-2 text-left transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+        aria-label={`Load ${preset.name}: ${preset.formula}`}
+      >
+        <span className="block self-start rounded-md p-1.5" style={{ background: style.ground }}>
+          <StaticGlyph doc={doc} style={style} />
+        </span>
+        <span className="grid min-w-0 content-start gap-0.5">
+          <span className="text-sm font-medium">{preset.name}</span>
+          <span className="text-muted-foreground font-mono text-[11px] break-words">{preset.formula}</span>
+          <span className="text-muted-foreground text-xs leading-snug">{preset.reading}</span>
+        </span>
+      </button>
+    </li>
   )
 }
 
@@ -79,7 +92,15 @@ export function PresetsPanel({ style, onLoad }: PresetsPanelProps) {
 
   return (
     <>
-      <PanelSection title="From the matrix">
+      <PanelSection title="Primitives" collapsible>
+        <div className="grid grid-cols-3 gap-2">
+          {PRIMITIVES.map((p) => (
+            <PresetTile key={p.name} preset={p} style={style} onLoad={onLoad} />
+          ))}
+        </div>
+      </PanelSection>
+
+      <PanelSection title="Ordered pairs" collapsible>
         <div>
           <p className="text-muted-foreground text-xs">
             Nine ordered pairs × five relations = 45 base glyphs. Order matters.
@@ -103,28 +124,18 @@ export function PresetsPanel({ style, onLoad }: PresetsPanelProps) {
           </ToggleGroup>
           {kindToggle(b, setB, "Shape B")}
         </div>
-        <div className="grid grid-cols-[1fr_auto] items-center gap-3">
-          <span className="block rounded-md p-3" style={{ background: style.ground }}>
-            <StaticGlyph doc={pair} style={style} label={pairFormula} />
-          </span>
-          <div className="grid gap-2 justify-items-end">
-            <span className="font-mono text-sm">{pairFormula}</span>
-            <Button size="sm" onClick={() => onLoad(fromSpec(pairSpec(rel, a, b)), pairFormula)}>
-              Load pair
-            </Button>
-          </div>
+        <span className="block rounded-md p-3" style={{ background: style.ground }}>
+          <StaticGlyph doc={pair} style={style} label={pairFormula} />
+        </span>
+        <div className="flex items-center justify-between gap-3">
+          <span className="font-mono text-sm">{pairFormula}</span>
+          <Button size="sm" variant="secondary" onClick={() => onLoad(fromSpec(pairSpec(rel, a, b)), pairFormula)}>
+            Load pair
+          </Button>
         </div>
       </PanelSection>
 
-      <PanelSection title="Primitives">
-        <div className="grid grid-cols-3 gap-2">
-          {PRIMITIVES.map((p) => (
-            <PresetTile key={p.name} preset={p} style={style} onLoad={onLoad} compact />
-          ))}
-        </div>
-      </PanelSection>
-
-      <PanelSection title="Compounds">
+      <PanelSection title="Compounds" collapsible>
         <div>
           <p className="text-muted-foreground text-xs">
             A finished glyph behaves like a single shape, so relations chain into larger glyphs.
@@ -145,15 +156,15 @@ export function PresetsPanel({ style, onLoad }: PresetsPanelProps) {
           ))}
         </div>
         {shelves.map((shelf) => (
-          <div key={shelf.theme} className="grid gap-3">
+          <div key={shelf.theme} className="grid gap-2">
             {theme === "All" && (
               <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">{shelf.theme}</span>
             )}
-            <div className="grid grid-cols-2 gap-3">
+            <ul className="-mx-2 grid gap-1">
               {shelf.presets.map((p) => (
-                <PresetTile key={p.name} preset={p} style={style} onLoad={onLoad} compact />
+                <CompoundRow key={p.name} preset={p} style={style} onLoad={onLoad} />
               ))}
-            </div>
+            </ul>
           </div>
         ))}
       </PanelSection>

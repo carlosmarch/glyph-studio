@@ -63,13 +63,13 @@ function SavedTile({ glyph, active, onOpen, onEdit, onDelete }: { glyph: SavedGl
 export function SavedPanel({ library, activeId, ...actions }: SavedPanelProps) {
   if (!library.length) {
     return (
-      <PanelSection title="Saved">
+      <PanelSection title="Saved" collapsible>
         <p className="text-muted-foreground text-xs">Nothing saved yet. Press Save (⌘S) to keep a glyph here with a title and description.</p>
       </PanelSection>
     )
   }
   return (
-    <PanelSection title="Saved" actions={<span className="text-muted-foreground pr-2 text-xs tabular-nums">{library.length}</span>}>
+    <PanelSection title="Saved" collapsible actions={<span className="text-muted-foreground pr-2 text-xs tabular-nums">{library.length}</span>}>
       <p className="text-muted-foreground text-xs">Kept in this browser only. Click one to open it.</p>
       <ul className="-mx-2 grid gap-1">
         {[...library]
