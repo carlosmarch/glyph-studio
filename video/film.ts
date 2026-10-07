@@ -10,8 +10,37 @@ import { formulaToDoc } from "@/lib/formula"
 import { center, fromSpec, type Doc, type GlyphSpec, type Kind, type Role } from "@/lib/grammar"
 import { COMPOUNDS, PALETTES, PRIMITIVES, pairSpec } from "@/lib/presets"
 
-export const W = 1920
-export const H = 1080
+/** `?format=vertical` renders the 9:16 cut; every layout number below comes from here. */
+const VERTICAL = new URLSearchParams(location.search).get("format") === "vertical"
+export const W = VERTICAL ? 1080 : 1920
+export const H = VERTICAL ? 1920 : 1080
+const CX = W / 2
+const NO_CAPTIONS = new URLSearchParams(location.search).has("nocaptions")
+const L = VERTICAL
+  ? {
+      main: { s: 4.8, sx: 540, sy: 820 },
+      ui: { s: 4.2, sx: 540, sy: 800 },
+      toolbar: { cx: 540, cy: 1150, w: 300, h: 84, buttons: [450, 540, 630] },
+      relate: { x: 354, y: 1050, w: 372, h: 330, from: [0, 900] as const },
+      pill: { cx: 540, cy: 420, w: 720, h: 84 },
+      capY: 1470,
+      formY: 1370,
+      capSize: 58,
+      formSize: 50,
+      wall: { scale: 1.05, sy: 960, cols: 3, rows: 8 },
+    }
+  : {
+      main: { s: 7, sx: 960, sy: 470 },
+      ui: { s: 5, sx: 960, sy: 500 },
+      toolbar: { cx: 960, cy: 905, w: 300, h: 84, buttons: [870, 960, 1050] },
+      relate: { x: 1468, y: 300, w: 372, h: 330, from: [480, 0] as const },
+      pill: { cx: 960, cy: 128, w: 720, h: 84 },
+      capY: 1000,
+      formY: 905,
+      capSize: 46,
+      formSize: 44,
+      wall: { scale: 0.86, sy: 540, cols: 6, rows: 5 },
+    }
 export const DURATION = 30
 
 // —— Studio palette ——————————————————————————————————————————————
@@ -371,9 +400,9 @@ const RELS = [
 ] as const
 
 // 3 · The pieces (11–17)
-const TOOLBAR = { cx: 960, cy: 905, w: 300, h: 84, buttons: [870, 960, 1050] }
+const TOOLBAR = L.toolbar
 const PRESS = [11.45, 11.85, 12.25]
-const RELATE = { x: 1468, y: 300, w: 372, h: 330 }
+const RELATE = L.relate
 const TOGGLE_OPS = ["—", "/", "⊂", "×", "|"]
 const CYCLE = [
   { t: 12.9, op: "—" },
@@ -381,7 +410,7 @@ const CYCLE = [
   { t: 13.6, op: "×" },
   { t: 13.95, op: "⊂" },
 ]
-const PILL = { cx: 960, cy: 128, w: 720, h: 84 }
+const PILL = L.pill
 const TYPED = "(▲ ⊂ ●) / ■"
 const TYPE_T0 = 14.8
 const TYPE_DT = 0.095
@@ -402,7 +431,7 @@ const ZOOM_T0 = 24
 const ZOOM_T1 = 28.4
 const PITCH_X = 232
 const PITCH_Y = 132
-const WALL_SCALE = 0.86
+const WALL_SCALE = L.wall.scale
 
 // —— Camera: world (glyph units) → screen ————————————————————————
 
@@ -411,8 +440,8 @@ interface Cam {
   sx: number
   sy: number
 }
-const CAM_MAIN: Cam = { s: 7, sx: 960, sy: 470 }
-const CAM_UI: Cam = { s: 5, sx: 960, sy: 500 }
+const CAM_MAIN: Cam = L.main
+const CAM_UI: Cam = L.ui
 
 function camAt(t: number): Cam {
   const blend = (a: Cam, b: Cam, q: number): Cam => ({ s: lerp(a.s, b.s, q), sx: lerp(a.sx, b.sx, q), sy: lerp(a.sy, b.sy, q) })
@@ -420,7 +449,7 @@ function camAt(t: number): Cam {
   if (t < 16.4) return blend(CAM_MAIN, CAM_UI, easeInOut(clamp((t - 10.9) / 0.6)))
   if (t < ZOOM_T0) return blend(CAM_UI, CAM_MAIN, easeInOut(clamp((t - 16.4) / 0.6)))
   const q = easeInOut(clamp((t - ZOOM_T0) / (ZOOM_T1 - ZOOM_T0)))
-  return { s: Math.exp(lerp(Math.log(CAM_MAIN.s), Math.log(WALL_SCALE), q)), sx: 960, sy: lerp(CAM_MAIN.sy, 540, q) }
+  return { s: Math.exp(lerp(Math.log(CAM_MAIN.s), Math.log(WALL_SCALE), q)), sx: CX, sy: lerp(CAM_MAIN.sy, L.wall.sy, q) }
 }
 const camTransform = (c: Cam) => `translate(${r1(c.sx)} ${r1(c.sy)}) scale(${c.s.toFixed(4)}) translate(-100 -50)`
 const toWorld = (c: Cam, x: number, y: number): [number, number] => [(x - c.sx) / c.s + 100, (y - c.sy) / c.s + 50]
@@ -505,8 +534,8 @@ interface Tile {
   tweens: Map<number, Tween>
 }
 const TILES: Tile[] = []
-for (let j = -5; j <= 5; j++) {
-  for (let i = -6; i <= 6; i++) {
+for (let j = -L.wall.rows; j <= L.wall.rows; j++) {
+  for (let i = -L.wall.cols; i <= L.wall.cols; i++) {
     if (i === 0 && j === 0) continue
     const h = hash(i * 31 + j * 17)
     // Compounds near the centre, pairs and primitives towards the edges.
@@ -574,33 +603,33 @@ function caption(c: Caption, t: number): string {
   if (t < c.t0 || t > c.t1) return ""
   const a = clamp((t - c.t0) / 0.16) * clamp((c.t1 - t) / 0.12)
   const dy = (1 - spring(t - c.t0, 260, 26, 1)) * 16
-  return `<text x="960" y="${r1(c.y + dy)}" text-anchor="middle" font-family="${c.font ?? SANS}" font-size="${c.size}" font-weight="${c.weight ?? 500}" fill="${c.color ?? INK}" opacity="${r1(a * 100) / 100}" letter-spacing="${c.font === MONO ? 0 : -0.5}">${esc(c.text)}</text>`
+  return `<text x="${CX}" y="${r1(c.y + dy)}" text-anchor="middle" font-family="${c.font ?? SANS}" font-size="${c.size}" font-weight="${c.weight ?? 500}" fill="${c.color ?? INK}" opacity="${r1(a * 100) / 100}" letter-spacing="${c.font === MONO ? 0 : -0.5}">${esc(c.text)}</text>`
 }
 
-const CAP_Y = 1000
-const FORM_Y = 905
+const CAP_Y = L.capY
+const FORM_Y = L.formY
 const CAPTIONS: Caption[] = [
-  { t0: 0.35, t1: 1.45, text: "A signal.", y: CAP_Y, size: 46 },
-  { t0: 1.6, t1: 2.65, text: "A change.", y: CAP_Y, size: 46 },
-  { t0: 2.8, t1: 3.85, text: "A structure.", y: CAP_Y, size: 46 },
-  { t0: 4.0, t1: 4.95, text: "Three shapes.", y: CAP_Y, size: 46, weight: 600 },
+  { t0: 0.35, t1: 1.45, text: "A signal.", y: CAP_Y, size: L.capSize },
+  { t0: 1.6, t1: 2.65, text: "A change.", y: CAP_Y, size: L.capSize },
+  { t0: 2.8, t1: 3.85, text: "A structure.", y: CAP_Y, size: L.capSize },
+  { t0: 4.0, t1: 4.95, text: "Three shapes.", y: CAP_Y, size: L.capSize, weight: 600 },
   ...RELS.flatMap((r, i): Caption[] => [
-    { t0: 5.05 + i, t1: 5.95 + i, text: `● ${r.op} ■`, y: FORM_Y, size: 44, font: MONO, weight: 400 },
-    { t0: 5.1 + i, t1: 5.95 + i, text: r.reads, y: CAP_Y, size: 46 },
+    { t0: 5.05 + i, t1: 5.95 + i, text: `● ${r.op} ■`, y: FORM_Y, size: L.formSize, font: MONO, weight: 400 },
+    { t0: 5.1 + i, t1: 5.95 + i, text: r.reads, y: CAP_Y, size: L.capSize },
   ]),
-  { t0: 10.05, t1: 10.9, text: "—   /   ⊂   ×   |", y: FORM_Y, size: 44, font: MONO, weight: 400 },
-  { t0: 10.05, t1: 10.9, text: "Five relations.", y: CAP_Y, size: 46, weight: 600 },
-  { t0: 11.15, t1: 12.6, text: "Add shapes.", y: CAP_Y, size: 46 },
-  { t0: 12.7, t1: 14.35, text: "Relate them.", y: CAP_Y, size: 46 },
-  { t0: 14.5, t1: 16.75, text: "Or write it.", y: CAP_Y, size: 46 },
+  { t0: 10.05, t1: 10.9, text: "—   /   ⊂   ×   |", y: FORM_Y, size: L.formSize, font: MONO, weight: 400 },
+  { t0: 10.05, t1: 10.9, text: "Five relations.", y: CAP_Y, size: L.capSize, weight: 600 },
+  { t0: 11.15, t1: 12.6, text: "Add shapes.", y: CAP_Y, size: L.capSize },
+  { t0: 12.7, t1: 14.35, text: "Relate them.", y: CAP_Y, size: L.capSize },
+  { t0: 14.5, t1: 16.75, text: "Or write it.", y: CAP_Y, size: L.capSize },
   ...RUN.flatMap((name, i): Caption[] => {
     const t1 = i + 1 < RUN.length ? RUN_T[i + 1] - 0.01 : 23.9
     return [
-      { t0: RUN_T[i] + 0.02, t1, text: compound(name).formula, y: FORM_Y, size: 40, font: MONO, weight: 400 },
-      { t0: RUN_T[i] + 0.02, t1: i + 1 < RUN.length ? t1 : 22.85, text: name, y: CAP_Y, size: 46, weight: 600 },
+      { t0: RUN_T[i] + 0.02, t1, text: compound(name).formula, y: FORM_Y, size: L.formSize, font: MONO, weight: 400 },
+      { t0: RUN_T[i] + 0.02, t1: i + 1 < RUN.length ? t1 : 22.85, text: name, y: CAP_Y, size: L.capSize, weight: 600 },
     ]
   }),
-  { t0: 22.95, t1: 23.9, text: "Every idea, three shapes.", y: CAP_Y, size: 46, weight: 600 },
+  { t0: 22.95, t1: 23.9, text: "Every idea, three shapes.", y: CAP_Y, size: L.capSize, weight: 600 },
 ]
 
 function card(x: number, y: number, w: number, h: number, r: number, inner: string, opacity = 1) {
@@ -633,16 +662,16 @@ function drawToolbar(t: number) {
     if (pressed || (since > 0 && since < 0.4)) inner += `<rect x="${bx - 34}" y="${cy - 34 + dy}" width="68" height="68" rx="14" fill="#F0F0F0" opacity="${r1(clamp(1 - (since - 0.22) / 0.18) * 100) / 100}"/>`
     inner += `<g transform="translate(${bx} ${cy + dy}) scale(${k}) translate(${-bx} ${-cy})">${shapeIcon(kinds[i], bx, cy, 30)}</g>`
   })
-  return card(cx - w / 2, cy - h / 2 + dy, w, h, 18, inner)
+  return card(cx - w / 2, cy - h / 2 + dy, w, h, 18, inner, 1 - clamp(outP))
 }
 
 function drawRelate(t: number) {
   if (t < 12.45 || t > 15.2) return ""
   const inP = spring(t - 12.45, 240, 24, 1)
   const outP = spring(t - 14.35, 240, 24, 1)
-  const dx = (1 - inP) * 480 + outP * 520
-  const { x: X, y: Y, w, h } = RELATE
-  const x = X + dx
+  const { x: X, y: Y0, w, h, from } = RELATE
+  const x = X + (1 - inP) * from[0] + outP * (from[0] * 1.1)
+  const Y = Y0 + (1 - inP) * from[1] + outP * (from[1] * 1.1)
   let inner = `<text x="${x + 28}" y="${Y + 50}" font-family="${SANS}" font-size="22" font-weight="600" fill="${INK}">Relate</text>`
   const chip = (cy: number, letter: string, kind: Kind, name: string) =>
     `<text x="${x + 28}" y="${cy + 8}" font-family="${SANS}" font-size="20" font-weight="600" fill="${MUTED}">${letter}</text>` +
@@ -707,24 +736,31 @@ function drawEndCard(t: number) {
   if (t < 27.3) return ""
   const a = easeOut(clamp((t - 27.3) / 0.9))
   let out = `<rect width="${W}" height="${H}" fill="#FFFFFF" opacity="${r1(a * 62) / 100}"/>`
-  out += `<ellipse cx="960" cy="540" rx="760" ry="300" fill="url(#halo)" opacity="${r1(a * 100) / 100}"/>`
+  out += `<ellipse cx="${CX}" cy="${H / 2}" rx="${VERTICAL ? 540 : 760}" ry="${VERTICAL ? 480 : 300}" fill="url(#halo)" opacity="${r1(a * 100) / 100}"/>`
   const line = (t0: number, y: number, text: string, size: number, weight: number, font = SANS, color = INK) => {
     const p = spring(t - t0, 220, 24, 1)
     if (p <= 0) return ""
-    return `<text x="960" y="${r1(y + (1 - p) * 30)}" text-anchor="middle" font-family="${font}" font-size="${size}" font-weight="${weight}" fill="${color}" opacity="${r1(clamp(p) * 100) / 100}" letter-spacing="${font === SANS ? -size * 0.025 : 0}">${esc(text)}</text>`
+    return `<text x="${CX}" y="${r1(y + (1 - p) * 30)}" text-anchor="middle" font-family="${font}" font-size="${size}" font-weight="${weight}" fill="${color}" opacity="${r1(clamp(p) * 100) / 100}" letter-spacing="${font === SANS ? -size * 0.025 : 0}">${esc(text)}</text>`
   }
   // The three primitives as a mark above the name.
   const mp = spring(t - 27.55, 260, 20, 1)
   if (mp > 0) {
-    out += `<g transform="translate(960 392) scale(${r1(mp * 100) / 100})">`
+    out += `<g transform="translate(${CX} ${VERTICAL ? 700 : 392}) scale(${r1(mp * 100) / 100})">`
     out += `<circle cx="-62" cy="0" r="22" fill="${INK}"/>`
     out += `<path d="M0 -24L26 20L-26 20Z" fill="${INK}"/>`
     out += `<rect x="40" y="-22" width="44" height="44" fill="${INK}"/>`
     out += "</g>"
   }
-  out += line(27.7, 538, "Glyph System Studio", 112, 700)
-  out += line(27.9, 612, "Three shapes. Five relations.", 44, 500, SANS, MUTED)
-  out += line(28.1, 690, "glyph-system-studio.netlify.app", 28, 400, MONO, INK)
+  if (VERTICAL) {
+    out += line(27.7, 900, "Glyph System", 128, 700)
+    out += line(27.78, 1030, "Studio", 128, 700)
+    out += line(27.9, 1120, "Three shapes. Five relations.", 50, 500, SANS, MUTED)
+    out += line(28.1, 1200, "glyph-system-studio.netlify.app", 32, 400, MONO, INK)
+  } else {
+    out += line(27.7, 538, "Glyph System Studio", 112, 700)
+    out += line(27.9, 612, "Three shapes. Five relations.", 44, 500, SANS, MUTED)
+    out += line(28.1, 690, "glyph-system-studio.netlify.app", 28, 400, MONO, INK)
+  }
   return out
 }
 
@@ -753,7 +789,7 @@ export function frame(t: number): string {
   svg += drawGlyph(MAIN.at(t))
   svg += "</g>"
   svg += drawToolbar(t) + drawRelate(t) + drawPill(t)
-  for (const c of CAPTIONS) svg += caption(c, t)
+  if (!NO_CAPTIONS) for (const c of CAPTIONS) svg += caption(c, t)
   svg += drawEndCard(t)
   return svg + "</svg>"
 }

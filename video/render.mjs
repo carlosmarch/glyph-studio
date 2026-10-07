@@ -1,4 +1,4 @@
-// Render the film: node video/render.mjs [--fps 60] [--from 0] [--to 30] [--stills 1,5.5,12] [--out video/out/glyph-system-studio.mp4]
+// Render the film: node video/render.mjs [--format vertical] [--fps 60] [--from 0] [--to 30] [--stills 1,5.5,12] [--nocaptions 1] [--out video/out/glyph-system-studio.mp4]
 import { spawn } from "node:child_process"
 import { mkdirSync } from "node:fs"
 import { createRequire } from "node:module"
@@ -13,7 +13,10 @@ const args = Object.fromEntries(
 const fps = Number(args.fps ?? 60)
 const from = Number(args.from ?? 0)
 const to = Number(args.to ?? 30)
-const out = path.resolve(root, args.out ?? "video/out/glyph-system-studio.mp4")
+const vertical = args.format === "vertical"
+const [width, height] = vertical ? [1080, 1920] : [1920, 1080]
+const out = path.resolve(root, args.out ?? `video/out/glyph-system-studio${vertical ? "-vertical" : ""}.mp4`)
+const query = new URLSearchParams({ render: "1", ...(vertical ? { format: "vertical" } : {}), ...(args.nocaptions ? { nocaptions: "1" } : {}) })
 
 // Playwright: the project's own copy if installed, else the global one.
 const require = createRequire(import.meta.url)
@@ -27,21 +30,21 @@ try {
 const server = await createServer({ root, configFile: path.join(root, "vite.config.ts"), server: { port: 5199, strictPort: true }, logLevel: "error" })
 await server.listen()
 const browser = await playwright.chromium.launch()
-const page = await browser.newPage({ viewport: { width: 1920, height: 1080 }, deviceScaleFactor: 1 })
-await page.goto("http://localhost:5199/video/index.html?render=1")
+const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 })
+await page.goto(`http://localhost:5199/video/index.html?${query}`)
 await page.waitForFunction(() => typeof window.seek === "function")
 await page.evaluate(() => document.fonts.ready)
 
 const shoot = async (t) => {
   await page.evaluate((t) => window.seek(t), t)
-  return page.screenshot({ type: "png", clip: { x: 0, y: 0, width: 1920, height: 1080 } })
+  return page.screenshot({ type: "png", clip: { x: 0, y: 0, width, height } })
 }
 
 mkdirSync(path.dirname(out), { recursive: true })
 if (args.stills) {
   const { writeFileSync } = await import("node:fs")
   for (const t of args.stills.split(",").map(Number)) {
-    const file = path.join(path.dirname(out), `still-${t.toFixed(2)}.png`)
+    const file = path.join(path.dirname(out), `still${vertical ? "-v" : ""}-${t.toFixed(2)}.png`)
     writeFileSync(file, await shoot(t))
     console.log(file)
   }
