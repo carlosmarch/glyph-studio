@@ -1,10 +1,17 @@
 import { useMemo } from "react"
 import { motion } from "motion/react"
-import { Pencil, Trash2 } from "lucide-react"
+import { FolderOpen, Pencil, Trash2 } from "lucide-react"
 
 import { StaticGlyph } from "@/components/glyph-canvas"
 import { PanelSection } from "@/components/panels/panel-section"
-import { Button } from "@/components/ui/button"
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu"
 import { decodeState } from "@/lib/export"
 import { formula } from "@/lib/grammar"
 import type { SavedGlyph } from "@/lib/library"
@@ -24,39 +31,50 @@ function SavedTile({ glyph, active, onOpen, onEdit, onDelete }: { glyph: SavedGl
   const state = useMemo(() => decodeState(glyph.state), [glyph.state])
   if (!state) return null
   return (
-    <li className={cn("grid grid-cols-[80px_minmax(0,1fr)] gap-3 rounded-lg p-2", active && "bg-muted")}>
-      <motion.button
-        type="button"
-        whileHover={{ y: -2 }}
-        whileTap={{ scale: 0.97 }}
-        onClick={() => onOpen(glyph)}
-        className="block self-start rounded-md p-2 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-        style={{ background: state.style.ground }}
-        aria-label={`Open ${glyph.title}`}
-      >
-        <StaticGlyph doc={state.doc} style={state.style} label={formula(state.doc)} />
-      </motion.button>
-      <div className="grid min-w-0 content-start gap-1">
-        <div className="flex items-start justify-between gap-1">
-          <button type="button" onClick={() => onOpen(glyph)} className="min-w-0 text-left text-sm font-medium hover:underline">
-            <span className="block truncate">{glyph.title}</span>
-          </button>
-          <div className="-mt-1 -mr-1 flex shrink-0">
-            <Button variant="ghost" size="icon" className="size-7" aria-label={`Edit ${glyph.title}`} onClick={() => onEdit(glyph)}>
-              <Pencil />
-            </Button>
-            <Button variant="ghost" size="icon" className="size-7" aria-label={`Delete ${glyph.title}`} onClick={() => onDelete(glyph)}>
-              <Trash2 />
-            </Button>
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
+        <li className={cn("grid grid-cols-[80px_minmax(0,1fr)] gap-3 rounded-lg p-2 data-[state=open]:bg-muted/60", active && "bg-muted")}>
+          <motion.button
+            type="button"
+            whileHover={{ y: -2 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => onOpen(glyph)}
+            className="block self-start rounded-md p-2 outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            style={{ background: state.style.ground }}
+            aria-label={`Open ${glyph.title}`}
+          >
+            <StaticGlyph doc={state.doc} style={state.style} label={formula(state.doc)} />
+          </motion.button>
+          <div className="grid min-w-0 content-start gap-1">
+            <button type="button" onClick={() => onOpen(glyph)} className="min-w-0 text-left text-sm font-medium hover:underline">
+              <span className="block truncate">{glyph.title}</span>
+            </button>
+            {glyph.description && <p className="text-muted-foreground line-clamp-3 text-xs leading-snug">{glyph.description}</p>}
+            <p className="text-muted-foreground text-[11px]">
+              {active && <span className="text-foreground font-medium">Open · </span>}
+              {dateFormat.format(glyph.savedAt)}
+            </p>
           </div>
-        </div>
-        {glyph.description && <p className="text-muted-foreground line-clamp-3 text-xs leading-snug">{glyph.description}</p>}
-        <p className="text-muted-foreground text-[11px]">
-          {active && <span className="text-foreground font-medium">Open · </span>}
-          {dateFormat.format(glyph.savedAt)}
-        </p>
-      </div>
-    </li>
+        </li>
+      </ContextMenuTrigger>
+      <ContextMenuContent className="w-44">
+        <ContextMenuLabel>{glyph.title}</ContextMenuLabel>
+        <ContextMenuSeparator />
+        <ContextMenuItem onSelect={() => onOpen(glyph)}>
+          <FolderOpen />
+          Open
+        </ContextMenuItem>
+        <ContextMenuItem onSelect={() => onEdit(glyph)}>
+          <Pencil />
+          Edit details
+        </ContextMenuItem>
+        <ContextMenuSeparator />
+        <ContextMenuItem variant="destructive" onSelect={() => onDelete(glyph)}>
+          <Trash2 />
+          Delete
+        </ContextMenuItem>
+      </ContextMenuContent>
+    </ContextMenu>
   )
 }
 
@@ -70,7 +88,7 @@ export function SavedPanel({ library, activeId, ...actions }: SavedPanelProps) {
   }
   return (
     <PanelSection title="Saved" collapsible actions={<span className="text-muted-foreground pr-2 text-xs tabular-nums">{library.length}</span>}>
-      <p className="text-muted-foreground text-xs">Kept in this browser only. Click one to open it.</p>
+      <p className="text-muted-foreground text-xs">Kept in this browser only. Click one to open it, right-click for more options.</p>
       <ul className="-mx-2 grid gap-1">
         {[...library]
           .sort((a, b) => b.savedAt - a.savedAt)
