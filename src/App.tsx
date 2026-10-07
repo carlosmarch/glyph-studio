@@ -555,7 +555,8 @@ export default function App() {
             aria-label="Canvas"
             onPointerDown={onWorkspacePointerDown}
           >
-            <div className="mx-auto grid w-full max-w-3xl flex-1 content-center gap-4 px-4 pt-6 pb-4 sm:px-8" onPointerDown={onWorkspacePointerDown}>
+            {/* Formula toolbar, mirroring the tools toolbar below */}
+            <div className="pointer-events-none sticky top-0 z-10 flex h-[4.5rem] shrink-0 items-start justify-center px-4 pt-4">
               <FormulaField
                 value={glyphFormula}
                 onStart={() => {
@@ -573,7 +574,9 @@ export default function App() {
                   beforeFormula.current = null
                 }}
               />
+            </div>
 
+            <div className="mx-auto grid w-full max-w-3xl flex-1 content-center gap-4 px-4 pt-2 pb-4 sm:px-8" onPointerDown={onWorkspacePointerDown}>
               <div className="-mb-3 flex min-w-0">
                 {/* The glyph's name sits on the frame's corner, like a frame name in Figma. */}
                 <button
