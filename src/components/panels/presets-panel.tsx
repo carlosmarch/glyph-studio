@@ -6,6 +6,7 @@ import { PanelSection } from "@/components/panels/panel-section"
 import { ShapeIcon } from "@/components/shape-icon"
 import { Button } from "@/components/ui/button"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip"
 import { fromSpec, KIND_META, KINDS, RELATION_META, RELATIONS, type Doc, type Kind, type RelationKind } from "@/lib/grammar"
 import { COMPOUND_THEMES, COMPOUNDS, pairSpec, PRIMITIVES, type CompoundTheme, type Preset, type Style } from "@/lib/presets"
 
@@ -14,50 +15,33 @@ interface PresetsPanelProps {
   onLoad: (doc: Doc, name: string) => void
 }
 
+// Name on one line, formula on the next, so neither truncates; the reading shows on hover.
 function PresetTile({ preset, style, onLoad }: { preset: Preset; style: Style; onLoad: (doc: Doc, name: string) => void }) {
   const doc = useMemo(() => fromSpec(preset.spec), [preset])
   return (
-    <motion.button
-      type="button"
-      whileHover={{ y: -2 }}
-      whileTap={{ scale: 0.97 }}
-      onClick={() => onLoad(fromSpec(preset.spec), preset.name)}
-      className="group grid gap-1.5 rounded-lg text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-      aria-label={`Load ${preset.name}: ${preset.formula}`}
-      title={preset.reading}
-    >
-      <span className="block rounded-md p-2" style={{ background: style.ground }}>
-        <StaticGlyph doc={doc} style={style} />
-      </span>
-      <span className="flex min-w-0 items-baseline justify-between gap-x-1.5">
-        <span className="truncate text-xs font-medium">{preset.name}</span>
-        <span className="text-muted-foreground shrink-0 font-mono text-[10px]">{preset.formula}</span>
-      </span>
-    </motion.button>
-  )
-}
-
-// A compound as a list row, like a saved glyph: thumbnail, then name, formula and reading.
-function CompoundRow({ preset, style, onLoad }: { preset: Preset; style: Style; onLoad: (doc: Doc, name: string) => void }) {
-  const doc = useMemo(() => fromSpec(preset.spec), [preset])
-  return (
-    <li>
-      <button
-        type="button"
-        onClick={() => onLoad(fromSpec(preset.spec), preset.name)}
-        className="hover:bg-muted grid w-full grid-cols-[72px_minmax(0,1fr)] gap-3 rounded-lg p-2 text-left transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
-        aria-label={`Load ${preset.name}: ${preset.formula}`}
-      >
-        <span className="block self-start rounded-md p-1.5" style={{ background: style.ground }}>
-          <StaticGlyph doc={doc} style={style} />
-        </span>
-        <span className="grid min-w-0 content-start gap-0.5">
-          <span className="text-sm font-medium">{preset.name}</span>
-          <span className="text-muted-foreground font-mono text-[11px] break-words">{preset.formula}</span>
-          <span className="text-muted-foreground text-xs leading-snug">{preset.reading}</span>
-        </span>
-      </button>
-    </li>
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <motion.button
+          type="button"
+          whileHover={{ y: -2 }}
+          whileTap={{ scale: 0.97 }}
+          onClick={() => onLoad(fromSpec(preset.spec), preset.name)}
+          className="group grid content-start gap-1.5 rounded-lg text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+          aria-label={`Load ${preset.name}: ${preset.formula}. ${preset.reading}`}
+        >
+          <span className="block rounded-md p-2" style={{ background: style.ground }}>
+            <StaticGlyph doc={doc} style={style} />
+          </span>
+          <span className="grid min-w-0 gap-0.5">
+            <span className="text-xs font-medium">{preset.name}</span>
+            <span className="text-muted-foreground font-mono text-[10px] break-words">{preset.formula}</span>
+          </span>
+        </motion.button>
+      </TooltipTrigger>
+      <TooltipContent side="right" className="max-w-56">
+        {preset.reading}
+      </TooltipContent>
+    </Tooltip>
   )
 }
 
@@ -156,15 +140,15 @@ export function PresetsPanel({ style, onLoad }: PresetsPanelProps) {
           ))}
         </div>
         {shelves.map((shelf) => (
-          <div key={shelf.theme} className="grid gap-2">
+          <div key={shelf.theme} className="grid gap-3">
             {theme === "All" && (
               <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">{shelf.theme}</span>
             )}
-            <ul className="-mx-2 grid gap-1">
+            <div className="grid grid-cols-2 gap-3">
               {shelf.presets.map((p) => (
-                <CompoundRow key={p.name} preset={p} style={style} onLoad={onLoad} />
+                <PresetTile key={p.name} preset={p} style={style} onLoad={onLoad} />
               ))}
-            </ul>
+            </div>
           </div>
         ))}
       </PanelSection>
