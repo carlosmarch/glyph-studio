@@ -1,4 +1,4 @@
-import { useId, useMemo, useRef, useState, type PointerEvent } from "react"
+import { useEffect, useId, useMemo, useRef, useState, type PointerEvent } from "react"
 import { AnimatePresence, motion, type Transition } from "motion/react"
 
 import { BOX_H, BOX_W, center, shapePath, type Doc, type Shape } from "@/lib/grammar"
@@ -7,6 +7,8 @@ import { cn } from "@/lib/utils"
 
 const PAD = 12
 const NODE_R = 2.4
+/** Selection handle size, in screen pixels. */
+const HANDLE_PX = 7
 const SPRING: Transition = { type: "spring", stiffness: 420, damping: 32, mass: 0.8 }
 const INSTANT: Transition = { duration: 0 }
 
@@ -57,10 +59,25 @@ export function GlyphCanvas({
   const svgRef = useRef<SVGSVGElement>(null)
   const drag = useRef<DragState | null>(null)
   const [dragging, setDragging] = useState<string[]>([])
+  // Glyph units per screen pixel, so selection handles keep a constant on-screen size.
+  const [unit, setUnit] = useState(1)
   const filterId = `wobble-${useId().replace(/:/g, "")}`
 
   const byId = useMemo(() => new Map(doc.shapes.map((s) => [s.id, s])), [doc.shapes])
   const selected = selectedId ? byId.get(selectedId) : undefined
+
+  useEffect(() => {
+    const svg = svgRef.current
+    if (!svg) return
+    const update = () => {
+      const w = svg.getBoundingClientRect().width
+      if (w > 0) setUnit((BOX_W + PAD * 2) / w)
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(svg)
+    return () => ro.disconnect()
+  }, [])
 
   function toGlyph(e: PointerEvent) {
     const svg = svgRef.current
@@ -220,20 +237,36 @@ export function GlyphCanvas({
 
       <AnimatePresence>
         {selected && (
-          <motion.rect
-            key="selection"
-            initial={{ opacity: 0, x: selected.x - 3, y: selected.y - 3, width: selected.w + 6, height: selected.h + 6 }}
-            animate={{ opacity: 1, x: selected.x - 3, y: selected.y - 3, width: selected.w + 6, height: selected.h + 6 }}
-            exit={{ opacity: 0 }}
-            transition={isDragging(selected.id) ? INSTANT : SPRING}
-            fill="none"
-            stroke="var(--selection)"
-            strokeWidth={1.5}
-            strokeDasharray="4 3"
-            vectorEffect="non-scaling-stroke"
-            rx={2}
-            pointerEvents="none"
-          />
+          <motion.g key="selection" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} pointerEvents="none">
+            <motion.rect
+              initial={false}
+              animate={{ x: selected.x, y: selected.y, width: selected.w, height: selected.h }}
+              transition={isDragging(selected.id) ? INSTANT : SPRING}
+              fill="none"
+              stroke="var(--selection)"
+              strokeWidth={1.5}
+              vectorEffect="non-scaling-stroke"
+            />
+            {[
+              [selected.x, selected.y],
+              [selected.x + selected.w, selected.y],
+              [selected.x, selected.y + selected.h],
+              [selected.x + selected.w, selected.y + selected.h],
+            ].map(([cx, cy], i) => (
+              <motion.rect
+                key={i}
+                width={HANDLE_PX * unit}
+                height={HANDLE_PX * unit}
+                initial={false}
+                animate={{ x: cx - (HANDLE_PX * unit) / 2, y: cy - (HANDLE_PX * unit) / 2 }}
+                transition={isDragging(selected.id) ? INSTANT : SPRING}
+                fill="white"
+                stroke="var(--selection)"
+                strokeWidth={1}
+                vectorEffect="non-scaling-stroke"
+              />
+            ))}
+          </motion.g>
         )}
       </AnimatePresence>
     </svg>
