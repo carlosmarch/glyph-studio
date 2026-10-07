@@ -78,46 +78,84 @@ export function FormulaField({ value, onPreview, onCommit, onCancel, onStart }: 
   }
 
   return (
-    <div className="grid gap-2">
-      <label htmlFor="formula-input" className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-        Formula
-      </label>
+    <div className="flex w-full max-w-3xl flex-col items-center gap-1.5">
+      <div
+        role="toolbar"
+        aria-label="Formula"
+        className={cn(
+          "bg-popover pointer-events-auto flex max-w-full flex-col gap-1 rounded-xl border p-1 shadow-lg",
+          editing && "w-full",
+        )}
+      >
+        <div className="flex min-w-0 items-center gap-1">
+          <label
+            htmlFor="formula-input"
+            className="text-muted-foreground shrink-0 px-2 font-mono text-sm italic select-none"
+            title="Formula"
+          >
+            ƒ
+          </label>
 
-      {editing ? (
-        <motion.div
-          initial={{ opacity: 0, y: -4 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.15 }}
-          className="grid gap-2"
-        >
-          <div className="flex gap-2">
-            <Input
-              id="formula-input"
-              ref={inputRef}
-              value={text}
-              onChange={(e) => update(e.target.value)}
-              onKeyDown={onKeyDown}
-              spellCheck={false}
-              autoComplete="off"
-              aria-invalid={!!error}
-              aria-describedby="formula-help"
-              placeholder="● — (▲ ⊂ ■)"
-              className="h-11 font-mono text-xl md:text-xl"
-            />
-            <Button size="icon" className="size-11" aria-label="Keep formula (Enter)" onClick={() => finish(true)} disabled={!!error || !text.trim()}>
-              <Check />
-            </Button>
-            <Button size="icon" variant="outline" className="size-11" aria-label="Cancel (Esc)" onClick={() => finish(false)}>
-              <X />
-            </Button>
-          </div>
+          {editing ? (
+            <>
+              <Input
+                id="formula-input"
+                ref={inputRef}
+                value={text}
+                onChange={(e) => update(e.target.value)}
+                onKeyDown={onKeyDown}
+                spellCheck={false}
+                autoComplete="off"
+                aria-invalid={!!error}
+                aria-describedby="formula-help"
+                placeholder="● — (▲ ⊂ ■)"
+                className="h-8 min-w-0 flex-1 border-none font-mono text-base shadow-none focus-visible:ring-0 md:text-base dark:bg-transparent"
+              />
+              <Button size="icon" className="size-8" aria-label="Keep formula (Enter)" onClick={() => finish(true)} disabled={!!error || !text.trim()}>
+                <Check />
+              </Button>
+              <Button size="icon" variant="ghost" className="size-8" aria-label="Cancel (Esc)" onClick={() => finish(false)}>
+                <X />
+              </Button>
+            </>
+          ) : (
+            <button
+              type="button"
+              onClick={start}
+              aria-label={`Formula ${value || "empty"}. Click to type a formula.`}
+              title="Click to type a formula"
+              className="hover:bg-muted min-w-0 rounded-md px-2 py-1 text-left transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+            >
+              <AnimatePresence mode="popLayout" initial={false}>
+                <motion.span
+                  key={value}
+                  initial={{ opacity: 0, y: 6, filter: "blur(4px)" }}
+                  animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
+                  exit={{ opacity: 0, y: -6, filter: "blur(4px)" }}
+                  transition={{ duration: 0.2 }}
+                  className="block truncate font-mono text-base [word-spacing:0.1em]"
+                >
+                  {value || "—"}
+                </motion.span>
+              </AnimatePresence>
+            </button>
+          )}
+        </div>
 
-          <div className="flex flex-wrap gap-1" role="toolbar" aria-label="Insert symbol">
+        {editing && (
+          <motion.div
+            initial={{ opacity: 0, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.15 }}
+            className="flex flex-wrap gap-0.5 border-t pt-1"
+            role="group"
+            aria-label="Insert symbol"
+          >
             {FORMULA_KEYS.map(({ key, label }) => (
               <Tooltip key={key}>
                 <TooltipTrigger asChild>
                   <Button
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     className="h-8 min-w-8 px-2 font-mono"
                     aria-label={`Insert ${label.toLowerCase()}`}
@@ -128,47 +166,32 @@ export function FormulaField({ value, onPreview, onCommit, onCancel, onStart }: 
                     {key.trim()}
                   </Button>
                 </TooltipTrigger>
-                <TooltipContent>{label}</TooltipContent>
+                <TooltipContent side="bottom">{label}</TooltipContent>
               </Tooltip>
             ))}
-          </div>
+          </motion.div>
+        )}
+      </div>
 
-          <p id="formula-help" className={cn("text-xs", error ? "text-destructive" : "text-muted-foreground")} aria-live="polite">
-            {error ? (
-              <>
-                {error.message}
-                {text.length > 0 && <span className="opacity-70"> — at character {error.at + 1}</span>}
-              </>
-            ) : (
-              <>
-                The canvas follows as you type. <kbd className="font-mono">Enter</kbd> keeps it,{" "}
-                <kbd className="font-mono">Esc</kbd> puts it back. Typing shortcuts: <code className="font-mono">c t s</code> for
-                shapes, <code className="font-mono">- / &lt; x |</code> for relations.
-              </>
-            )}
-          </p>
-        </motion.div>
-      ) : (
-        <button
-          type="button"
-          onClick={start}
-          aria-label={`Formula ${value || "empty"}. Click to type a formula.`}
-          title="Click to type a formula"
-          className="hover:bg-muted/60 -mx-2 rounded-md px-2 py-1 text-left transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+      {editing && (
+        <p
+          id="formula-help"
+          className={cn("bg-popover/90 pointer-events-auto rounded-md px-2 py-1 text-center text-xs", error ? "text-destructive" : "text-muted-foreground")}
+          aria-live="polite"
         >
-          <AnimatePresence mode="popLayout" initial={false}>
-            <motion.span
-              key={value}
-              initial={{ opacity: 0, y: 6, filter: "blur(4px)" }}
-              animate={{ opacity: 1, y: 0, filter: "blur(0px)" }}
-              exit={{ opacity: 0, y: -6, filter: "blur(4px)" }}
-              transition={{ duration: 0.2 }}
-              className="block font-mono text-2xl break-words [word-spacing:0.1em]"
-            >
-              {value || "—"}
-            </motion.span>
-          </AnimatePresence>
-        </button>
+          {error ? (
+            <>
+              {error.message}
+              {text.length > 0 && <span className="opacity-70"> — at character {error.at + 1}</span>}
+            </>
+          ) : (
+            <>
+              The canvas follows as you type. <kbd className="font-mono">Enter</kbd> keeps it,{" "}
+              <kbd className="font-mono">Esc</kbd> puts it back. Typing shortcuts: <code className="font-mono">c t s</code> for
+              shapes, <code className="font-mono">- / &lt; x |</code> for relations.
+            </>
+          )}
+        </p>
       )}
     </div>
   )
