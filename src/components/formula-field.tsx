@@ -1,6 +1,6 @@
 import { useRef, useState, type KeyboardEvent } from "react"
 import { AnimatePresence, motion } from "motion/react"
-import { Check, PenLine, X } from "lucide-react"
+import { Check, X } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
@@ -79,16 +79,9 @@ export function FormulaField({ value, onPreview, onCommit, onCancel, onStart }: 
 
   return (
     <div className="grid gap-2">
-      <div className="flex items-center justify-between gap-2">
-        <label htmlFor="formula-input" className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
-          Formula
-        </label>
-        {!editing && (
-          <Button variant="ghost" size="sm" className="text-muted-foreground h-7" onClick={start}>
-            <PenLine /> Type a formula
-          </Button>
-        )}
-      </div>
+      <label htmlFor="formula-input" className="text-muted-foreground text-xs font-medium tracking-wide uppercase">
+        Formula
+      </label>
 
       {editing ? (
         <motion.div
@@ -160,6 +153,7 @@ export function FormulaField({ value, onPreview, onCommit, onCancel, onStart }: 
           type="button"
           onClick={start}
           aria-label={`Formula ${value || "empty"}. Click to type a formula.`}
+          title="Click to type a formula"
           className="hover:bg-muted/60 -mx-2 rounded-md px-2 py-1 text-left transition-colors outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
         >
           <AnimatePresence mode="popLayout" initial={false}>
