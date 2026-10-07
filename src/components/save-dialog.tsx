@@ -48,7 +48,7 @@ function SaveForm({ current, mode, suggestedTitle, onSave }: Omit<SaveDialogProp
     <form onSubmit={submit} className="grid gap-4">
       <DialogHeader>
         <DialogTitle>{mode === "edit" ? "Edit details" : current ? "Update saved glyph" : "Save glyph"}</DialogTitle>
-        <DialogDescription>Saved in this browser. Find it again in the Saved tab.</DialogDescription>
+        <DialogDescription>Saved in this browser. Find it again under Assets.</DialogDescription>
       </DialogHeader>
       <div className="grid gap-2">
         <Label htmlFor="save-title">Title</Label>

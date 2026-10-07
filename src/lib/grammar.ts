@@ -293,45 +293,218 @@ function symbol(s: Shape) {
   return s.role === "outline" ? KIND_META[s.kind].hollow : KIND_META[s.kind].symbol
 }
 
+interface Group {
+  expr: string
+  /** Shape that takes relations from the left, as in the formula parser. */
+  head: string
+  /** Topmost shape of a stack, where an anchor's line lands. */
+  top: string
+  /** The relation this group is a chain of, so `▲ / ■ / ■` stays flat. */
+  chain?: RelationKind
+  /** Needs brackets when it's an operand of a tight relation. */
+  compound: boolean
+}
+
+// Inner relations first, so `▲ | (○ × ■)` groups the overlap before the anchor.
+const BIND_ORDER: RelationKind[] = ["nest", "overlap", "stack", "anchor"]
+
 /**
- * The glyph written in the grammar's notation. Chains of the same relation
- * merge (`● — ▲ — ■`); unrelated shapes stand alone.
+ * The glyph written in the grammar's notation, grouped the way the formula
+ * field reads it: stack, nest, overlap and anchor bind tighter than connect,
+ * so `▲ | (○ × ■) — ●` reads back as typed. Several shapes on one base become
+ * a fan (`{▲, ▲} / ■`) or a connected group (`(● — ■) / ■`), one shape on
+ * several bases a row (`▲ / (■ ■)`), and a ring of lines a loop
+ * (`▲ — ● — ■ — ▲`). Whatever can't be written in one expression is listed
+ * as a separate part.
  */
 export function formula(doc: Doc): string {
   if (!doc.shapes.length) return ""
   const byId = new Map(doc.shapes.map((s) => [s.id, s]))
   const relations = inferRelations(doc)
-  const clauses: { kind: RelationKind; seq: string[] }[] = relations.map((r) => ({ kind: r.kind, seq: [r.a, r.b] }))
+  const groupOf = new Map<string, Group>()
+  const members = new Map<Group, string[]>()
+  for (const s of doc.shapes) {
+    const g: Group = { expr: symbol(s), head: s.id, top: s.id, compound: false }
+    groupOf.set(s.id, g)
+    members.set(g, [s.id])
+  }
+  const join = (parts: Group[], g: Group) => {
+    const ids = parts.flatMap((p) => members.get(p)!)
+    for (const p of parts) members.delete(p)
+    members.set(g, ids)
+    for (const id of ids) groupOf.set(id, g)
+    return g
+  }
+  const atom = (id: string) => members.get(groupOf.get(id)!)!.length === 1
+  const wrap = (g: Group) => (g.compound ? `(${g.expr})` : g.expr)
+  const used = new Set<InferredRelation>()
+  const connects = relations.filter((r) => r.kind === "connect")
+  const extra: string[] = []
+  const loose = (r: InferredRelation) =>
+    extra.push(`${symbol(byId.get(r.a)!)} ${RELATION_META[r.kind].op} ${symbol(byId.get(r.b)!)}`)
 
-  // Merge clauses of the same relation end-to-start (connect may also flip).
-  let merged = true
-  while (merged) {
-    merged = false
-    outer: for (let i = 0; i < clauses.length; i++) {
-      for (let j = 0; j < clauses.length; j++) {
-        if (i === j || clauses[i].kind !== clauses[j].kind) continue
-        const x = clauses[i]
-        let y = clauses[j]
-        if (x.kind === "nest" || x.kind === "overlap") continue
-        if (x.kind === "connect" && x.seq[x.seq.length - 1] !== y.seq[0] && x.seq[x.seq.length - 1] === y.seq[y.seq.length - 1]) {
-          y = { ...y, seq: [...y.seq].reverse() }
-        }
-        if (x.seq[x.seq.length - 1] === y.seq[0]) {
-          x.seq = [...x.seq, ...y.seq.slice(1)]
-          clauses.splice(j, 1)
-          merged = true
-          break outer
-        }
+  for (const kind of BIND_ORDER) {
+    const op = RELATION_META[kind].op
+    const ofKind = relations.filter((r) => r.kind === kind)
+
+    // Several atoms on one base: `{▲, ▲} / ■`, or `(● — ■) / ■` when they're joined.
+    for (const b of new Set(ofKind.map((r) => r.b))) {
+      const rs = ofKind.filter((r) => r.b === b && !used.has(r))
+      const as = rs.map((r) => r.a)
+      if (as.length < 2 || !as.every(atom) || groupOf.get(b)!.head !== b) continue
+      const path = connectPath(as, connects.filter((r) => !used.has(r)))
+      const A: Group = path
+        ? { expr: path.order.map((id) => symbol(byId.get(id)!)).join(" — "), head: path.order[0], top: path.order[0], compound: true }
+        : { expr: `{${as.map((id) => symbol(byId.get(id)!)).join(", ")}}`, head: as[0], top: as[0], compound: false }
+      path?.edges.forEach((r) => used.add(r))
+      rs.forEach((r) => used.add(r))
+      const B = groupOf.get(b)!
+      join([...as.map((id) => groupOf.get(id)!), B], { expr: `${wrap(A)} ${op} ${wrap(B)}`, head: B.head, top: kind === "stack" ? A.top : B.top, chain: kind, compound: true })
+    }
+
+    // One shape across several atom bases: `▲ / (■ ■)`.
+    for (const a of new Set(ofKind.map((r) => r.a))) {
+      const rs = ofKind.filter((r) => r.a === a && !used.has(r))
+      const bs = rs.map((r) => r.b)
+      if (bs.length < 2 || !bs.every(atom) || groupOf.get(a)!.head !== a) continue
+      rs.forEach((r) => used.add(r))
+      const A = groupOf.get(a)!
+      const row = `(${bs.map((id) => symbol(byId.get(id)!)).join(" ")})`
+      join([A, ...bs.map((id) => groupOf.get(id)!)], { expr: `${wrap(A)} ${op} ${row}`, head: bs[0], top: kind === "stack" ? A.top : bs[0], compound: true })
+    }
+
+    for (const r of ofKind) {
+      if (used.has(r)) continue
+      used.add(r)
+      const A = groupOf.get(r.a)!
+      const B = groupOf.get(r.b)!
+      // An anchor may also flag the top of a stack: `● | (■ / ■)`.
+      const onB = B.head === r.b || (kind === "anchor" && B.chain === "stack" && B.top === r.b)
+      if (A === B || A.head !== r.a || !onB) {
+        loose(r)
+        continue
       }
+      // A same-relation chain reads flat for stack (`▲ / ■ / ■`); anything else is grouped.
+      const left = A.chain === "stack" && kind === "stack" ? A.expr : wrap(A)
+      join([A, B], { expr: `${left} ${op} ${wrap(B)}`, head: B.head, top: kind === "stack" ? A.top : B.top, chain: kind, compound: true })
     }
   }
 
-  const used = new Set(relations.flatMap((r) => [r.a, r.b]))
-  const parts = clauses.map((c) =>
-    c.seq.map((id) => symbol(byId.get(id)!)).join(` ${RELATION_META[c.kind].op} `),
-  )
-  for (const s of doc.shapes) if (!used.has(s.id)) parts.push(symbol(s))
-  return parts.join("  ·  ")
+  // Connect joins whole groups head to head, as a chain, a fan or a loop.
+  const edges = new Map<Group, Group[]>()
+  const closing = new Map<Group, Group>()
+  const firstFrom: Group[] = []
+  for (const r of connects) {
+    if (used.has(r)) continue
+    const A = groupOf.get(r.a)!
+    const B = groupOf.get(r.b)!
+    if (A === B || A.head !== r.a || B.head !== r.b) {
+      loose(r)
+    } else if (reachable(edges, A, B)) {
+      if (closing.has(A) || closing.has(B)) loose(r)
+      else closing.set(A, B).set(B, A)
+    } else {
+      edges.set(A, [...(edges.get(A) ?? []), B])
+      edges.set(B, [...(edges.get(B) ?? []), A])
+      firstFrom.push(A)
+    }
+  }
+
+  const done = new Set<Group>()
+  const write = (g: Group, from: Group | null): string => {
+    done.add(g)
+    const next = (edges.get(g) ?? []).filter((n) => n !== from)
+    // Tight relations bind closer than connect; the brackets just make the parts easy to see.
+    if (!next.length) return wrap(g)
+    if (next.length === 1) return `${wrap(g)} — ${write(next[0], g)}`
+    return `${wrap(g)} — {${next.map((n) => write(n, g)).join(", ")}}`
+  }
+  const degree = (g: Group) => edges.get(g)?.length ?? 0
+  const parts: string[] = []
+  for (const g of [...firstFrom, ...members.keys()]) {
+    if (done.has(g)) continue
+    const root = degree(g) === 2 ? walkToEnd(edges, g) : g
+    if (!degree(root) && !closing.has(root)) {
+      // A part on its own needs no outer brackets: `▲ | (○ × ■)`.
+      done.add(root)
+      parts.push(root.expr)
+      continue
+    }
+    const end = closing.get(root)
+    // A ring is a path whose two ends are joined; the parser closes it when the first shape repeats.
+    if (end && members.get(root)!.length === 1 && isPath(edges, root, end)) {
+      parts.push(`${write(root, null)} — ${root.expr}`)
+      closing.delete(root)
+      closing.delete(end)
+    } else parts.push(write(root, null))
+  }
+  // Lines that close a ring we couldn't write as a loop. Each is stored both ways; list it once.
+  for (const [a, b] of closing) {
+    if (a.head < b.head) extra.push(`${symbol(byId.get(a.head)!)} — ${symbol(byId.get(b.head)!)}`)
+  }
+  return [...parts, ...extra].join("  ·  ")
+}
+
+/** The ids joined end to end by connect lines, if they form a single path. */
+function connectPath(ids: string[], connects: InferredRelation[]): { order: string[]; edges: InferredRelation[] } | null {
+  const set = new Set(ids)
+  const edges = connects.filter((r) => set.has(r.a) && set.has(r.b))
+  if (edges.length !== ids.length - 1) return null
+  const nbrs = new Map(ids.map((id) => [id, [] as string[]]))
+  for (const r of edges) {
+    nbrs.get(r.a)!.push(r.b)
+    nbrs.get(r.b)!.push(r.a)
+  }
+  if ([...nbrs.values()].some((n) => n.length > 2)) return null
+  const start = ids.find((id) => nbrs.get(id)!.length === 1)
+  if (!start) return null
+  const order = [start]
+  while (order.length < ids.length) {
+    const next = nbrs.get(order[order.length - 1])!.find((n) => !order.includes(n))
+    if (!next) return null
+    order.push(next)
+  }
+  return { order, edges }
+}
+
+function reachable(edges: Map<Group, Group[]>, a: Group, b: Group): boolean {
+  const seen = new Set<Group>([a])
+  const queue = [a]
+  while (queue.length) {
+    const g = queue.shift()!
+    if (g === b) return true
+    for (const n of edges.get(g) ?? []) {
+      if (seen.has(n)) continue
+      seen.add(n)
+      queue.push(n)
+    }
+  }
+  return false
+}
+
+/** Whether the lines from `start` run as one unbranched path that ends at `end`. */
+function isPath(edges: Map<Group, Group[]>, start: Group, end: Group): boolean {
+  let prev: Group | null = null
+  let cur = start
+  for (;;) {
+    const next = (edges.get(cur) ?? []).filter((n) => n !== prev)
+    if (!next.length) return cur === end
+    if (next.length > 1) return false
+    prev = cur
+    cur = next[0]
+  }
+}
+
+/** Walk a path from its middle to one end. Hubs (3+ lines) stay as the root. */
+function walkToEnd(edges: Map<Group, Group[]>, g: Group): Group {
+  let prev: Group | null = null
+  let cur = g
+  for (;;) {
+    const next = (edges.get(cur) ?? []).filter((n) => n !== prev)
+    if (next.length !== 1 || (edges.get(cur)?.length ?? 0) > 2) return cur
+    prev = cur
+    cur = next[0]
+  }
 }
 
 // —— Rules (same as the portfolio's check-glyphs) ———————————————————
