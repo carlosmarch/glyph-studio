@@ -1,7 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState, type PointerEvent } from "react"
 import { AnimatePresence, motion, type Transition } from "motion/react"
 
-import { BOX_H, BOX_W, center, shapePath, type Doc, type Shape } from "@/lib/grammar"
+import { BOX_H, BOX_W, MIN_SIZE, center, shapePath, type Doc, type Shape } from "@/lib/grammar"
 import type { Style } from "@/lib/presets"
 import { cn } from "@/lib/utils"
 
@@ -11,6 +11,13 @@ const NODE_R = 2.4
 const HANDLE_PX = 7
 const SPRING: Transition = { type: "spring", stiffness: 420, damping: 32, mass: 0.8 }
 const INSTANT: Transition = { duration: 0 }
+
+export interface ShapeRect {
+  x: number
+  y: number
+  w: number
+  h: number
+}
 
 export interface ShapeMove {
   id: string
@@ -27,7 +34,9 @@ interface GlyphCanvasProps {
   onSelect: (id: string | null) => void
   /** Called on every pointer move while dragging (transient). */
   onMove: (moves: ShapeMove[]) => void
-  /** Called once when a drag ends, to record one undo step. */
+  /** Called on every pointer move while dragging a corner handle (transient). */
+  onResize: (id: string, rect: ShapeRect) => void
+  /** Called once when a drag or resize ends, to record one undo step. */
   onMoveEnd: () => void
   className?: string
 }
@@ -35,6 +44,45 @@ interface GlyphCanvasProps {
 interface DragState {
   ids: string[]
   offsets: { id: string; dx: number; dy: number }[]
+}
+
+interface ResizeState {
+  id: string
+  /** The corner opposite the grabbed handle stays put. */
+  ax: number
+  ay: number
+  /** Which way the grabbed corner points from the anchor: 1 or -1 on each axis. */
+  sx: number
+  sy: number
+  w0: number
+  h0: number
+}
+
+/** Corner handles, in order: top-left, top-right, bottom-left, bottom-right. */
+const CORNERS = [
+  [0, 0],
+  [1, 0],
+  [0, 1],
+  [1, 1],
+] as const
+
+/** Rect spanned from the anchor to the pointer, kept inside the box; Shift keeps proportions. */
+function resizeRect(r: ResizeState, px: number, py: number, keepRatio: boolean): ShapeRect {
+  const maxW = r.sx > 0 ? BOX_W - r.ax : r.ax
+  const maxH = r.sy > 0 ? BOX_H - r.ay : r.ay
+  let w = Math.min(Math.max(r.sx * (px - r.ax), MIN_SIZE), maxW)
+  let h = Math.min(Math.max(r.sy * (py - r.ay), MIN_SIZE), maxH)
+  if (keepRatio) {
+    const k = Math.max(
+      Math.min(Math.max(w / r.w0, h / r.h0), maxW / r.w0, maxH / r.h0),
+      MIN_SIZE / Math.min(r.w0, r.h0),
+    )
+    w = r.w0 * k
+    h = r.h0 * k
+  }
+  w = Math.round(w)
+  h = Math.round(h)
+  return { x: r.sx > 0 ? r.ax : r.ax - w, y: r.sy > 0 ? r.ay : r.ay - h, w, h }
 }
 
 /** Shapes nested (ink) inside a body travel with it when it's dragged. */
@@ -53,11 +101,13 @@ export function GlyphCanvas({
   showFrame,
   onSelect,
   onMove,
+  onResize,
   onMoveEnd,
   className,
 }: GlyphCanvasProps) {
   const svgRef = useRef<SVGSVGElement>(null)
   const drag = useRef<DragState | null>(null)
+  const resize = useRef<ResizeState | null>(null)
   const [dragging, setDragging] = useState<string[]>([])
   // Glyph units per screen pixel, so selection handles keep a constant on-screen size.
   const [unit, setUnit] = useState(1)
@@ -97,7 +147,28 @@ export function GlyphCanvas({
     svgRef.current?.setPointerCapture(e.pointerId)
   }
 
+  function startResize(e: PointerEvent, s: Shape, cx: number, cy: number) {
+    e.stopPropagation()
+    resize.current = {
+      id: s.id,
+      ax: cx ? s.x : s.x + s.w,
+      ay: cy ? s.y : s.y + s.h,
+      sx: cx ? 1 : -1,
+      sy: cy ? 1 : -1,
+      w0: s.w,
+      h0: s.h,
+    }
+    setDragging([s.id])
+    svgRef.current?.setPointerCapture(e.pointerId)
+  }
+
   function moveDrag(e: PointerEvent) {
+    const r = resize.current
+    if (r) {
+      const p = toGlyph(e)
+      onResize(r.id, resizeRect(r, p.x, p.y, e.shiftKey))
+      return
+    }
     const d = drag.current
     if (!d) return
     const p = toGlyph(e)
@@ -105,8 +176,9 @@ export function GlyphCanvas({
   }
 
   function endDrag(e: PointerEvent) {
-    if (!drag.current) return
+    if (!drag.current && !resize.current) return
     drag.current = null
+    resize.current = null
     setDragging([])
     svgRef.current?.releasePointerCapture(e.pointerId)
     onMoveEnd()
@@ -237,7 +309,7 @@ export function GlyphCanvas({
 
       <AnimatePresence>
         {selected && (
-          <motion.g key="selection" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} pointerEvents="none">
+          <motion.g key="selection" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
             <motion.rect
               initial={false}
               animate={{ x: selected.x, y: selected.y, width: selected.w, height: selected.h }}
@@ -246,24 +318,26 @@ export function GlyphCanvas({
               stroke="var(--selection)"
               strokeWidth={1.5}
               vectorEffect="non-scaling-stroke"
+              pointerEvents="none"
             />
-            {[
-              [selected.x, selected.y],
-              [selected.x + selected.w, selected.y],
-              [selected.x, selected.y + selected.h],
-              [selected.x + selected.w, selected.y + selected.h],
-            ].map(([cx, cy], i) => (
+            {CORNERS.map(([cx, cy], i) => (
               <motion.rect
                 key={i}
+                data-handle={i}
                 width={HANDLE_PX * unit}
                 height={HANDLE_PX * unit}
                 initial={false}
-                animate={{ x: cx - (HANDLE_PX * unit) / 2, y: cy - (HANDLE_PX * unit) / 2 }}
+                animate={{
+                  x: selected.x + cx * selected.w - (HANDLE_PX * unit) / 2,
+                  y: selected.y + cy * selected.h - (HANDLE_PX * unit) / 2,
+                }}
                 transition={isDragging(selected.id) ? INSTANT : SPRING}
                 fill="white"
                 stroke="var(--selection)"
                 strokeWidth={1}
                 vectorEffect="non-scaling-stroke"
+                style={{ cursor: cx === cy ? "nwse-resize" : "nesw-resize" }}
+                onPointerDown={(e) => startResize(e, selected, cx, cy)}
               />
             ))}
           </motion.g>

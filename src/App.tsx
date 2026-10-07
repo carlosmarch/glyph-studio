@@ -415,6 +415,7 @@ export default function App() {
                     if (id) setTab((t) => (t === "relate" || t === "shape" ? t : "shape"))
                   }}
                   onMove={onMove}
+                  onResize={(id, rect) => setDoc((d) => updateShape(d, id, rect), true)}
                   onMoveEnd={history.commit}
                 />
               </Card>
@@ -491,7 +492,7 @@ export default function App() {
               </AnimatePresence>
 
               <p className="text-muted-foreground text-xs">
-                Drag shapes to move them · <kbd className="font-mono">←↑→↓</kbd> nudge (⇧ ×5) ·{" "}
+                Drag shapes to move them, corners to resize (⇧ keeps proportions) · <kbd className="font-mono">←↑→↓</kbd> nudge (⇧ ×5) ·{" "}
                 <kbd className="font-mono">⌫</kbd> delete · <kbd className="font-mono">Esc</kbd> deselect · <kbd className="font-mono">R</kbd> random. Relations:{" "}
                 {(Object.keys(RELATION_META) as RelationKind[]).map((r) => `${RELATION_META[r].op} ${RELATION_META[r].name.toLowerCase()}`).join(" · ")}.
               </p>
