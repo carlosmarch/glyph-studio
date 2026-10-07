@@ -56,7 +56,7 @@ export function RelatePanel({ doc, selectedId, onApply, onUnlink }: RelatePanelP
 
   return (
     <>
-      <PanelSection title="Relation">
+      <PanelSection collapsible title="Relation">
       <div className="grid gap-2">
         <ToggleGroup
           type="single"
@@ -121,7 +121,7 @@ export function RelatePanel({ doc, selectedId, onApply, onUnlink }: RelatePanelP
       )}
       </PanelSection>
 
-      <PanelSection title="Read from the canvas">
+      <PanelSection collapsible title="Read from the canvas">
         {relations.length ? (
           <ul className="grid gap-1.5">
             <AnimatePresence initial={false}>

@@ -10,7 +10,9 @@ import {
   Eraser,
   ExternalLink,
   FilePlus2,
+  Film,
   HelpCircle,
+  ImagePlay,
   Link2,
   Moon,
   Pencil,
@@ -54,7 +56,7 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useHistory } from "@/hooks/use-history"
 import { randomDoc } from "@/lib/formula"
 import { loadLibrary, newSavedId, storeLibrary, type SavedGlyph } from "@/lib/library"
-import { decodeState, download, encodeState, toSnippet, toSVG } from "@/lib/export"
+import { decodeState, download, encodeState, toAnimatedSVG, toGIF, toSnippet, toSVG } from "@/lib/export"
 import {
   addShape,
   applyRelation,
@@ -157,6 +159,12 @@ function PanelTab(props: React.ComponentProps<typeof TabsTrigger>) {
   )
 }
 
+function exportGIF(doc: Doc, style: Style) {
+  const gif = toGIF(doc, style)
+  toast.promise(gif, { loading: "Rendering GIF…", success: "GIF downloaded", error: "Couldn't render the GIF" })
+  gif.then((blob) => download("glyph.gif", blob, "image/gif")).catch(() => {})
+}
+
 function ExportItems({ doc, style, copy }: { doc: Doc; style: Style; copy: (text: string, what: string) => void }) {
   return (
     <>
@@ -166,6 +174,14 @@ function ExportItems({ doc, style, copy }: { doc: Doc; style: Style; copy: (text
       </DropdownMenuItem>
       <DropdownMenuItem onSelect={() => copy(toSVG(doc, style), "SVG")}>
         <Copy /> Copy SVG markup
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuLabel>Animated</DropdownMenuLabel>
+      <DropdownMenuItem onSelect={() => download("glyph-animated.svg", toAnimatedSVG(doc, style), "image/svg+xml")}>
+        <Film /> Download animated SVG
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => exportGIF(doc, style)}>
+        <ImagePlay /> Download GIF
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuLabel>Portfolio</DropdownMenuLabel>
@@ -751,7 +767,7 @@ export default function App() {
                   />
                 )}
                 <StylePanel style={style} showFrame={showFrame} onChange={setStyle} onCommit={history.commit} onShowFrame={setShowFrame} />
-                <PanelSection title="Export">
+                <PanelSection collapsible title="Export">
                   <div className="grid grid-cols-[1fr_auto] gap-2">
                     <Button variant="outline" size="sm" disabled={!doc.shapes.length} onClick={() => download("glyph.svg", toSVG(doc, style), "image/svg+xml")}>
                       <Download /> Export SVG

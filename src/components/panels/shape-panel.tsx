@@ -116,6 +116,7 @@ export function ShapePanel({ doc, shape: s, onUpdate, onCommit, onDuplicate, onR
   return (
     <>
       <PanelSection
+        collapsible
         title={`${KIND_META[s.kind].name} ${n}`}
         actions={
           <>
@@ -179,7 +180,7 @@ export function ShapePanel({ doc, shape: s, onUpdate, onCommit, onDuplicate, onR
         </Select>
       </PanelSection>
 
-      <PanelSection title="Layout">
+      <PanelSection collapsible title="Layout">
         <div className="grid grid-cols-[1fr_1fr_28px] items-center gap-2">
           <NumberField label="X" name="X position" value={s.x} min={0} max={BOX_W - s.w} onChange={(x) => onUpdate(s.id, { x }, true)} onCommit={onCommit} />
           <NumberField label="Y" name="Y position" value={s.y} min={0} max={BOX_H - s.h} onChange={(y) => onUpdate(s.id, { y }, true)} onCommit={onCommit} />

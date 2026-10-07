@@ -52,7 +52,7 @@ export function StylePanel({ style, showFrame, onChange, onCommit, onShowFrame }
 
   return (
     <>
-      <PanelSection title="Palette" actions={<span className="text-muted-foreground pr-2 text-xs">{active ? active.name : "Custom"}</span>}>
+      <PanelSection collapsible title="Palette" actions={<span className="text-muted-foreground pr-2 text-xs">{active ? active.name : "Custom"}</span>}>
         <div className="grid grid-cols-5 gap-2">
           {PALETTES.map((p) => (
             <button
@@ -78,13 +78,13 @@ export function StylePanel({ style, showFrame, onChange, onCommit, onShowFrame }
         </div>
       </PanelSection>
 
-      <PanelSection title="Colours">
+      <PanelSection collapsible title="Colours">
         <ColorField id="ground" label="Ground" value={style.ground} onChange={(ground) => onChange({ ground })} />
         <ColorField id="fill" label="Fill · shape bodies" value={style.fill} onChange={(fill) => onChange({ fill })} />
         <ColorField id="ink" label="Ink · relations" value={style.ink} onChange={(ink) => onChange({ ink })} />
       </PanelSection>
 
-      <PanelSection title="Stroke">
+      <PanelSection collapsible title="Stroke">
       <div className="grid gap-2">
         <div className="flex items-center justify-between">
           <Label className="text-xs font-normal">Hand-drawn wobble</Label>
@@ -145,7 +145,7 @@ export function StylePanel({ style, showFrame, onChange, onCommit, onShowFrame }
 
       </PanelSection>
 
-      <PanelSection title="Canvas">
+      <PanelSection collapsible title="Canvas">
       <div className="flex items-center justify-between">
         <Label htmlFor="frame" className="font-normal">Show the 200 × 100 frame</Label>
         <Switch id="frame" checked={showFrame} onCheckedChange={onShowFrame} />
