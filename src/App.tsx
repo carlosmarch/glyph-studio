@@ -2,13 +2,18 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { AnimatePresence, MotionConfig, motion } from "motion/react"
 import {
   AlertTriangle,
+  ChevronDown,
   Code2,
-  Dices,
   Copy,
+  Dices,
   Download,
   Eraser,
+  ExternalLink,
+  FilePlus2,
+  HelpCircle,
   Link2,
   Moon,
+  Pencil,
   Redo2,
   RotateCcw,
   Save,
@@ -20,23 +25,29 @@ import { toast } from "sonner"
 import { FormulaField } from "@/components/formula-field"
 import { GlyphCanvas, type ShapeMove } from "@/components/glyph-canvas"
 import { SaveDialog, type SaveDetails } from "@/components/save-dialog"
+import { LayersPanel } from "@/components/panels/layers-panel"
+import { PanelSection } from "@/components/panels/panel-section"
 import { PresetsPanel } from "@/components/panels/presets-panel"
 import { RelatePanel } from "@/components/panels/relate-panel"
 import { SavedPanel } from "@/components/panels/saved-panel"
 import { ShapePanel } from "@/components/panels/shape-panel"
 import { StylePanel } from "@/components/panels/style-panel"
 import { ShapeIcon } from "@/components/shape-icon"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Card } from "@/components/ui/card"
 import {
   DropdownMenu,
+  DropdownMenuCheckboxItem,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { Separator } from "@/components/ui/separator"
 import { Toaster } from "@/components/ui/sonner"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
@@ -75,6 +86,8 @@ interface Studio {
 
 const INITIAL: Studio = { doc: STARTER, style: DEFAULT_STYLE }
 
+const TOOL_KEYS: Record<string, Kind> = { c: "circle", t: "triangle", s: "square" }
+
 // A share link wins, then the latest save, then the starter glyph.
 function initialState(library: SavedGlyph[]): Studio {
   if (typeof window === "undefined") return INITIAL
@@ -92,7 +105,25 @@ function useDarkMode() {
   return [dark, setDark] as const
 }
 
-function IconAction({ label, shortcut, children, ...props }: React.ComponentProps<typeof Button> & { label: string; shortcut?: string }) {
+const SHORTCUTS: [string, string][] = [
+  ["Add circle · triangle · square", "C T S"],
+  ["Random glyph", "R"],
+  ["Move selection", "←↑→↓"],
+  ["Move ×5", "⇧ + arrows"],
+  ["Resize, keep proportions", "⇧ + drag corner"],
+  ["Delete selection", "⌫"],
+  ["Deselect", "Esc"],
+  ["Undo / redo", "⌘Z / ⇧⌘Z"],
+  ["Save", "⌘S"],
+]
+
+function IconAction({
+  label,
+  shortcut,
+  side,
+  children,
+  ...props
+}: React.ComponentProps<typeof Button> & { label: string; shortcut?: string; side?: "top" | "bottom" | "left" | "right" }) {
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -100,11 +131,48 @@ function IconAction({ label, shortcut, children, ...props }: React.ComponentProp
           {children}
         </Button>
       </TooltipTrigger>
-      <TooltipContent>
+      <TooltipContent side={side}>
         {label}
         {shortcut && <span className="ml-2 opacity-60">{shortcut}</span>}
       </TooltipContent>
     </Tooltip>
+  )
+}
+
+// Text tabs along the top of a side panel, as in Figma's Layers/Assets and Design/Prototype.
+function PanelTabs({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="shrink-0 border-b px-2 py-1.5">
+      <TabsList className="h-8 gap-1 bg-transparent p-0">{children}</TabsList>
+    </div>
+  )
+}
+
+function PanelTab(props: React.ComponentProps<typeof TabsTrigger>) {
+  return (
+    <TabsTrigger
+      className="text-muted-foreground hover:text-foreground data-[state=active]:bg-muted data-[state=active]:text-foreground dark:data-[state=active]:bg-muted h-7 flex-none border-0 px-2.5 text-xs font-semibold data-[state=active]:shadow-none dark:data-[state=active]:border-transparent"
+      {...props}
+    />
+  )
+}
+
+function ExportItems({ doc, style, copy }: { doc: Doc; style: Style; copy: (text: string, what: string) => void }) {
+  return (
+    <>
+      <DropdownMenuLabel>SVG</DropdownMenuLabel>
+      <DropdownMenuItem onSelect={() => download("glyph.svg", toSVG(doc, style), "image/svg+xml")}>
+        <Download /> Download SVG
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => copy(toSVG(doc, style), "SVG")}>
+        <Copy /> Copy SVG markup
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuLabel>Portfolio</DropdownMenuLabel>
+      <DropdownMenuItem onSelect={() => copy(toSnippet(doc), "glyphs.ts entry")}>
+        <Code2 /> Copy glyphs.ts entry
+      </DropdownMenuItem>
+    </>
   )
 }
 
@@ -117,7 +185,8 @@ export default function App() {
   const beforeFormula = useRef<Studio | null>(null)
   const [selection, setSelectedId] = useState<string | null>(null)
   const [showFrame, setShowFrame] = useState(true)
-  const [tab, setTab] = useState("shape")
+  const [leftTab, setLeftTab] = useState("layers")
+  const [rightTab, setRightTab] = useState("design")
   const [dark, setDark] = useDarkMode()
   const encoded = useMemo(() => encodeState({ doc, style }), [doc, style])
   // The saved glyph on the canvas: whichever save matches what was loaded at start.
@@ -224,12 +293,20 @@ export default function App() {
     toast("Reset to the starter glyph", { action: { label: "Undo", onClick: history.undo } })
   }
 
-  const add = (kind: Kind) => {
-    if (full) return
-    const id = newId()
-    setDoc((d) => addShape(d, kind, id).doc)
-    setSelectedId(id)
-    setTab("shape")
+  const add = useCallback(
+    (kind: Kind) => {
+      if (full) return
+      const id = newId()
+      setDoc((d) => addShape(d, kind, id).doc)
+      setSelectedId(id)
+      setRightTab("design")
+    },
+    [full, setDoc],
+  )
+
+  const clearCanvas = () => {
+    history.set((s) => ({ ...s, doc: { shapes: [], links: [] } }))
+    setSelectedId(null)
   }
 
   const remove = useCallback(
@@ -295,6 +372,13 @@ export default function App() {
         randomize()
         return
       }
+      // C, T, S add a shape — the same letters the formula field reads.
+      const tool = TOOL_KEYS[e.key.toLowerCase()]
+      if (!mod && !e.altKey && tool && !target.closest("[role=menu]")) {
+        e.preventDefault()
+        add(tool)
+        return
+      }
       if (!selectedId || target.closest("[role=slider], [role=listbox], [role=menu]")) return
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault()
@@ -318,7 +402,7 @@ export default function App() {
     }
     window.addEventListener("keydown", onKey)
     return () => window.removeEventListener("keydown", onKey)
-  }, [undo, redo, randomize, selectedId, remove, setDoc])
+  }, [undo, redo, randomize, add, selectedId, remove, setDoc])
 
   const copy = async (text: string, what: string) => {
     try {
@@ -330,96 +414,148 @@ export default function App() {
   }
 
   const label = glyphFormula ? `Glyph: ${glyphFormula.replace(/ {2}· {2}/g, ", ")}` : "Empty glyph canvas"
+  const selectedShape = doc.shapes.find((s) => s.id === selectedId) ?? null
+  // Clicking empty workspace deselects, as in Figma.
+  const onWorkspacePointerDown = (e: React.PointerEvent) => {
+    if (e.target === e.currentTarget) setSelectedId(null)
+  }
 
   return (
     <MotionConfig reducedMotion="user">
       <TooltipProvider>
-        <div className="mx-auto flex min-h-dvh max-w-7xl flex-col gap-6 px-4 py-6 sm:px-6">
-          <header className="flex flex-wrap items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <span className="grid size-9 place-items-center rounded-lg bg-[#FFF59D] text-[#020617]" aria-hidden>
-                <svg viewBox="0 0 16 16" className="size-5">
-                  <rect x="3" y="3" width="10" height="10" fill="currentColor" />
-                  <circle cx="8" cy="8" r="2.3" fill="#fff" />
-                </svg>
-              </span>
-              <div>
-                <h1 className="text-lg leading-tight font-semibold">Glyph System Studio</h1>
-                <p className="text-muted-foreground text-sm">Three shapes. Five ways to relate.</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-1">
-              <IconAction label="Undo" shortcut="⌘Z" onClick={history.undo} disabled={!history.canUndo}>
-                <Undo2 />
-              </IconAction>
-              <IconAction label="Redo" shortcut="⇧⌘Z" onClick={history.redo} disabled={!history.canRedo}>
-                <Redo2 />
-              </IconAction>
-              <IconAction label="Reset to initial state" onClick={reset} disabled={history.value === INITIAL}>
-                <RotateCcw />
-              </IconAction>
-              <IconAction label={dark ? "Light mode" : "Dark mode"} onClick={() => setDark(!dark)}>
-                {dark ? <Sun /> : <Moon />}
-              </IconAction>
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button variant="outline" className="relative ml-2" onClick={() => setDialog({ mode: "save", glyph: active })}>
-                    <Save /> Save
-                    {dirty && <span className="bg-primary absolute top-1 right-1 size-1.5 rounded-full" aria-label="Unsaved changes" />}
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {active ? (dirty ? `Unsaved changes to “${active.title}”` : `Saved as “${active.title}”`) : "Save with a title and description"}
-                  <span className="ml-2 opacity-60">⌘S</span>
-                </TooltipContent>
-              </Tooltip>
-              <Button variant="outline" onClick={() => copy(window.location.href, "Share link")}>
-                <Link2 /> Share
-              </Button>
+        <div className="flex min-h-dvh flex-col lg:grid lg:h-dvh lg:grid-cols-[260px_minmax(0,1fr)_288px] lg:overflow-hidden">
+          {/* Left: file + layers and assets */}
+          <aside className="bg-card flex min-h-0 flex-col border-b lg:border-r lg:border-b-0" aria-label="Layers and assets">
+            <div className="flex h-12 shrink-0 items-center gap-1 border-b px-2">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button disabled={!doc.shapes.length}>
-                    <Download /> Export
+                  <Button variant="ghost" className="h-9 gap-1 px-1.5" aria-label="Main menu">
+                    <span className="grid size-7 place-items-center rounded-md bg-[#FFF59D] text-[#020617]" aria-hidden>
+                      <svg viewBox="0 0 16 16" className="size-4">
+                        <rect x="3" y="3" width="10" height="10" fill="currentColor" />
+                        <circle cx="8" cy="8" r="2.3" fill="#fff" />
+                      </svg>
+                    </span>
+                    <ChevronDown className="text-muted-foreground size-3.5" />
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-56">
-                  <DropdownMenuLabel>SVG</DropdownMenuLabel>
-                  <DropdownMenuItem onSelect={() => download("glyph.svg", toSVG(doc, style), "image/svg+xml")}>
-                    <Download /> Download SVG
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onSelect={() => copy(toSVG(doc, style), "SVG")}>
-                    <Copy /> Copy SVG markup
-                  </DropdownMenuItem>
+                <DropdownMenuContent align="start" className="w-60">
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>File</DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="w-56">
+                      <DropdownMenuItem onSelect={quickSave}>
+                        <Save /> Save <DropdownMenuShortcut>⌘S</DropdownMenuShortcut>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={() => setDialog({ mode: "save", glyph: active })}>
+                        <FilePlus2 /> Save as…
+                      </DropdownMenuItem>
+                      <DropdownMenuItem disabled={!active} onSelect={() => active && setDialog({ mode: "edit", glyph: active })}>
+                        <Pencil /> Rename…
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={() => copy(window.location.href, "Share link")}>
+                        <Link2 /> Copy share link
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={reset} disabled={history.value === INITIAL}>
+                        <RotateCcw /> Reset to starter glyph
+                      </DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>Edit</DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="w-56">
+                      <DropdownMenuItem onSelect={history.undo} disabled={!history.canUndo}>
+                        <Undo2 /> Undo <DropdownMenuShortcut>⌘Z</DropdownMenuShortcut>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={history.redo} disabled={!history.canRedo}>
+                        <Redo2 /> Redo <DropdownMenuShortcut>⇧⌘Z</DropdownMenuShortcut>
+                      </DropdownMenuItem>
+                      <DropdownMenuSeparator />
+                      <DropdownMenuItem onSelect={randomize}>
+                        <Dices /> Random glyph <DropdownMenuShortcut>R</DropdownMenuShortcut>
+                      </DropdownMenuItem>
+                      <DropdownMenuItem onSelect={clearCanvas} disabled={!doc.shapes.length}>
+                        <Eraser /> Clear canvas
+                      </DropdownMenuItem>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger>View</DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="w-56">
+                      <DropdownMenuCheckboxItem checked={showFrame} onCheckedChange={setShowFrame}>
+                        Show 200 × 100 frame
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuCheckboxItem checked={dark} onCheckedChange={setDark}>
+                        Dark mode
+                      </DropdownMenuCheckboxItem>
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
+                  <DropdownMenuSub>
+                    <DropdownMenuSubTrigger disabled={!doc.shapes.length}>Export</DropdownMenuSubTrigger>
+                    <DropdownMenuSubContent className="w-56">
+                      <ExportItems doc={doc} style={style} copy={copy} />
+                    </DropdownMenuSubContent>
+                  </DropdownMenuSub>
                   <DropdownMenuSeparator />
-                  <DropdownMenuLabel>Portfolio</DropdownMenuLabel>
-                  <DropdownMenuItem onSelect={() => copy(toSnippet(doc), "glyphs.ts entry")}>
-                    <Code2 /> Copy glyphs.ts entry
+                  <DropdownMenuItem asChild>
+                    <a href="https://carlosmarch.es/playground/shape-grammar">
+                      <ExternalLink /> About the shape grammar
+                    </a>
                   </DropdownMenuItem>
                 </DropdownMenuContent>
               </DropdownMenu>
+
+              <button
+                type="button"
+                onClick={() => setDialog(active ? { mode: "edit", glyph: active } : { mode: "save", glyph: null })}
+                className="hover:bg-muted min-w-0 flex-1 rounded-md px-1.5 py-1 text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                title={active ? "Rename" : "Save with a title"}
+              >
+                <h1 className="flex items-center gap-1.5 truncate text-sm leading-tight font-semibold">
+                  <span className="truncate">{active?.title ?? "Untitled glyph"}</span>
+                  {dirty && <span className="bg-primary size-1.5 shrink-0 rounded-full" aria-label="Unsaved changes" />}
+                </h1>
+                <p className="text-muted-foreground truncate text-xs">Glyph System Studio</p>
+              </button>
             </div>
-          </header>
 
-          <main className="grid flex-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_380px]">
-            <section className="grid gap-4 lg:sticky lg:top-6" aria-label="Canvas">
-              <Card className="gap-0 overflow-hidden p-0">
-                <GlyphCanvas
+            <Tabs value={leftTab} onValueChange={setLeftTab} className="min-h-0 flex-1 gap-0">
+              <PanelTabs>
+                <PanelTab value="layers">Layers</PanelTab>
+                <PanelTab value="assets">
+                  Assets
+                  {library.length > 0 && <span className="text-muted-foreground text-xs tabular-nums">{library.length}</span>}
+                </PanelTab>
+              </PanelTabs>
+              <TabsContent value="layers" className="min-h-0 overflow-y-auto">
+                <LayersPanel
                   doc={doc}
-                  style={style}
-                  label={label}
                   selectedId={selectedId}
-                  showFrame={showFrame}
-                  onSelect={(id) => {
-                    setSelectedId(id)
-                    if (id) setTab((t) => (t === "relate" || t === "shape" ? t : "shape"))
-                  }}
-                  onMove={onMove}
-                  onResize={(id, rect) => setDoc((d) => updateShape(d, id, rect), true)}
-                  onMoveEnd={history.commit}
+                  onSelect={setSelectedId}
+                  onFront={(id) => setDoc((d) => bringToFront(d, id))}
+                  onRemove={remove}
                 />
-              </Card>
+              </TabsContent>
+              <TabsContent value="assets" className="min-h-0 overflow-y-auto">
+                <SavedPanel
+                  library={library}
+                  activeId={activeId}
+                  onOpen={openSaved}
+                  onEdit={(glyph) => setDialog({ mode: "edit", glyph })}
+                  onDelete={deleteSaved}
+                />
+                <PresetsPanel style={style} onLoad={loadPreset} />
+              </TabsContent>
+            </Tabs>
+          </aside>
 
+          {/* Centre: the workspace */}
+          <main
+            className="bg-muted/70 relative flex min-h-[70vh] flex-col overflow-auto lg:min-h-0"
+            aria-label="Canvas"
+            onPointerDown={onWorkspacePointerDown}
+          >
+            <div className="mx-auto grid w-full max-w-3xl flex-1 content-center gap-4 px-4 pt-6 pb-4 sm:px-8" onPointerDown={onWorkspacePointerDown}>
               <FormulaField
                 value={glyphFormula}
                 onStart={() => {
@@ -438,38 +574,21 @@ export default function App() {
                 }}
               />
 
-              <div className="flex flex-wrap items-center justify-end gap-3">
-                <div className="flex items-center gap-2">
-                  {KINDS.map((k) => (
-                    <Tooltip key={k}>
-                      <TooltipTrigger asChild>
-                        <span tabIndex={full ? 0 : -1}>
-                          <Button variant="outline" onClick={() => add(k)} disabled={full} aria-label={`Add ${KIND_META[k].name.toLowerCase()}`}>
-                            <ShapeIcon kind={k} />
-                            <span className="hidden sm:inline">{KIND_META[k].name}</span>
-                          </Button>
-                        </span>
-                      </TooltipTrigger>
-                      <TooltipContent>{full ? `The grammar allows ${MAX_SHAPES} shapes` : KIND_META[k].meaning}</TooltipContent>
-                    </Tooltip>
-                  ))}
-                  <Badge variant={full ? "default" : "secondary"} className="tabular-nums">
-                    {doc.shapes.length}/{MAX_SHAPES}
-                  </Badge>
-                  <IconAction label="Random glyph" shortcut="R" onClick={randomize}>
-                    <Dices />
-                  </IconAction>
-                  <IconAction
-                    label="Clear canvas"
-                    onClick={() => {
-                      history.set((s) => ({ ...s, doc: { shapes: [], links: [] } }))
-                      setSelectedId(null)
-                    }}
-                    disabled={!doc.shapes.length}
-                  >
-                    <Eraser />
-                  </IconAction>
-                </div>
+              <div className="overflow-hidden rounded-sm shadow-[0_1px_3px_rgb(0_0_0/0.08),0_8px_24px_-8px_rgb(0_0_0/0.15)]" style={{ background: style.ground }}>
+                <GlyphCanvas
+                  doc={doc}
+                  style={style}
+                  label={label}
+                  selectedId={selectedId}
+                  showFrame={showFrame}
+                  onSelect={(id) => {
+                    setSelectedId(id)
+                    if (id) setRightTab((t) => (t === "relate" ? t : "design"))
+                  }}
+                  onMove={onMove}
+                  onResize={(id, rect) => setDoc((d) => updateShape(d, id, rect), true)}
+                  onMoveEnd={history.commit}
+                />
               </div>
 
               <AnimatePresence initial={false}>
@@ -490,86 +609,159 @@ export default function App() {
                   </motion.p>
                 ))}
               </AnimatePresence>
+            </div>
 
-              <p className="text-muted-foreground text-xs">
-                Drag shapes to move them, corners to resize (⇧ keeps proportions) · <kbd className="font-mono">←↑→↓</kbd> nudge (⇧ ×5) ·{" "}
-                <kbd className="font-mono">⌫</kbd> delete · <kbd className="font-mono">Esc</kbd> deselect · <kbd className="font-mono">R</kbd> random. Relations:{" "}
-                {(Object.keys(RELATION_META) as RelationKind[]).map((r) => `${RELATION_META[r].op} ${RELATION_META[r].name.toLowerCase()}`).join(" · ")}.
-              </p>
-            </section>
+            {/* Floating toolbar, Figma UI3 style */}
+            <div className="pointer-events-none sticky bottom-0 flex items-end justify-center gap-2 px-4 pb-4">
+              <div
+                role="toolbar"
+                aria-label="Tools"
+                className="bg-popover pointer-events-auto flex items-center gap-0.5 rounded-xl border p-1 shadow-lg"
+              >
+                {KINDS.map((k) => (
+                  <Tooltip key={k}>
+                    <TooltipTrigger asChild>
+                      <span tabIndex={full ? 0 : -1}>
+                        <Button variant="ghost" size="icon" onClick={() => add(k)} disabled={full} aria-label={`Add ${KIND_META[k].name.toLowerCase()}`}>
+                          <ShapeIcon kind={k} />
+                        </Button>
+                      </span>
+                    </TooltipTrigger>
+                    <TooltipContent side="top">
+                      {full ? (
+                        `The grammar allows ${MAX_SHAPES} shapes`
+                      ) : (
+                        <>
+                          {KIND_META[k].name}
+                          <span className="ml-2 opacity-60">{k[0].toUpperCase()}</span>
+                        </>
+                      )}
+                    </TooltipContent>
+                  </Tooltip>
+                ))}
+                <span className="text-muted-foreground px-1.5 text-xs tabular-nums" aria-label={`${doc.shapes.length} of ${MAX_SHAPES} shapes`}>
+                  {doc.shapes.length}/{MAX_SHAPES}
+                </span>
+                <Separator orientation="vertical" className="mx-1 data-[orientation=vertical]:h-5" />
+                <IconAction label="Random glyph" shortcut="R" side="top" onClick={randomize}>
+                  <Dices />
+                </IconAction>
+                <IconAction label="Clear canvas" side="top" onClick={clearCanvas} disabled={!doc.shapes.length}>
+                  <Eraser />
+                </IconAction>
+                <Separator orientation="vertical" className="mx-1 data-[orientation=vertical]:h-5" />
+                <IconAction label="Undo" shortcut="⌘Z" side="top" onClick={history.undo} disabled={!history.canUndo}>
+                  <Undo2 />
+                </IconAction>
+                <IconAction label="Redo" shortcut="⇧⌘Z" side="top" onClick={history.redo} disabled={!history.canRedo}>
+                  <Redo2 />
+                </IconAction>
+              </div>
+            </div>
 
-            <Card className="min-w-0 gap-0 py-0">
-              <Tabs value={tab} onValueChange={setTab} className="gap-0">
-                <div className="border-b p-3">
-                  <TabsList className="w-full">
-                    <TabsTrigger value="shape">Shape</TabsTrigger>
-                    <TabsTrigger value="relate">Relate</TabsTrigger>
-                    <TabsTrigger value="style">Style</TabsTrigger>
-                    <TabsTrigger value="presets">Presets</TabsTrigger>
-                    <TabsTrigger value="saved">
-                      Saved
-                      {library.length > 0 && <span className="text-muted-foreground text-xs tabular-nums">{library.length}</span>}
-                    </TabsTrigger>
-                  </TabsList>
-                </div>
-                <div className="p-5">
-                  <TabsContent value="shape">
-                    <ShapePanel
-                      doc={doc}
-                      selectedId={selectedId}
-                      onSelect={setSelectedId}
-                      onUpdate={(id, patch: Partial<Omit<Shape, "id">>, transient) => setDoc((d) => updateShape(d, id, patch), transient)}
-                      onCommit={history.commit}
-                      onDuplicate={(id) => {
-                        const copyId = newId()
-                        setDoc((d) => duplicateShape(d, id, copyId)?.doc ?? d)
-                        setSelectedId(copyId)
-                      }}
-                      onFront={(id) => setDoc((d) => bringToFront(d, id))}
-                      onRemove={remove}
-                    />
-                  </TabsContent>
-                  <TabsContent value="relate">
-                    <RelatePanel
-                      doc={doc}
-                      selectedId={selectedId}
-                      onApply={relate}
-                      onUnlink={(id) => setDoc((d) => removeLink(d, id))}
-                    />
-                  </TabsContent>
-                  <TabsContent value="style">
-                    <StylePanel
-                      style={style}
-                      showFrame={showFrame}
-                      onChange={setStyle}
-                      onCommit={history.commit}
-                      onShowFrame={setShowFrame}
-                    />
-                  </TabsContent>
-                  <TabsContent value="presets">
-                    <PresetsPanel style={style} onLoad={loadPreset} />
-                  </TabsContent>
-                  <TabsContent value="saved">
-                    <SavedPanel
-                      library={library}
-                      activeId={activeId}
-                      onOpen={openSaved}
-                      onEdit={(glyph) => setDialog({ mode: "edit", glyph })}
-                      onDelete={deleteSaved}
-                    />
-                  </TabsContent>
-                </div>
-              </Tabs>
-            </Card>
+            <div className="absolute right-4 bottom-4 hidden sm:block">
+              <DropdownMenu>
+                <Tooltip>
+                  <TooltipTrigger asChild>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="outline" size="icon" className="bg-popover size-8 rounded-full shadow-sm" aria-label="Keyboard shortcuts">
+                        <HelpCircle />
+                      </Button>
+                    </DropdownMenuTrigger>
+                  </TooltipTrigger>
+                  <TooltipContent side="left">Keyboard shortcuts</TooltipContent>
+                </Tooltip>
+                <DropdownMenuContent align="end" side="top" className="w-72">
+                  <DropdownMenuLabel>Canvas</DropdownMenuLabel>
+                  {SHORTCUTS.map(([what, key]) => (
+                    <div key={what} className="flex items-center justify-between px-2 py-1 text-sm">
+                      {what}
+                      <kbd className="text-muted-foreground font-mono text-xs">{key}</kbd>
+                    </div>
+                  ))}
+                  <DropdownMenuSeparator />
+                  <DropdownMenuLabel>Relations</DropdownMenuLabel>
+                  {(Object.keys(RELATION_META) as RelationKind[]).map((r) => (
+                    <div key={r} className="flex items-center justify-between px-2 py-1 text-sm">
+                      {RELATION_META[r].name}
+                      <span className="text-muted-foreground font-mono text-xs">A {RELATION_META[r].op} B</span>
+                    </div>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </main>
 
-          <footer className="text-muted-foreground border-t pt-4 text-xs">
-            Based on the shape grammar by{" "}
-            <a className="underline underline-offset-4 hover:text-foreground" href="https://carlosmarch.es/playground/shape-grammar">
-              Carlos March
-            </a>
-            . Exports drop straight into the portfolio's <code className="font-mono">glyphs.ts</code>.
-          </footer>
+          {/* Right: properties */}
+          <aside className="bg-card flex min-h-0 flex-col border-t lg:border-t-0 lg:border-l" aria-label="Properties">
+            <div className="flex h-12 shrink-0 items-center justify-end gap-1.5 border-b px-3">
+              <IconAction label={dark ? "Light mode" : "Dark mode"} className="size-8" onClick={() => setDark(!dark)}>
+                {dark ? <Sun /> : <Moon />}
+              </IconAction>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button variant="outline" size="sm" className="relative" onClick={quickSave}>
+                    Save
+                    {dirty && <span className="bg-primary absolute top-1 right-1 size-1.5 rounded-full" aria-label="Unsaved changes" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {active ? (dirty ? `Unsaved changes to “${active.title}”` : `Saved as “${active.title}”`) : "Save with a title and description"}
+                  <span className="ml-2 opacity-60">⌘S</span>
+                </TooltipContent>
+              </Tooltip>
+              <Button size="sm" className="bg-[var(--selection)] text-white hover:bg-[var(--selection)]/90" onClick={() => copy(window.location.href, "Share link")}>
+                Share
+              </Button>
+            </div>
+
+            <Tabs value={rightTab} onValueChange={setRightTab} className="min-h-0 flex-1 gap-0">
+              <PanelTabs>
+                <PanelTab value="design">Design</PanelTab>
+                <PanelTab value="relate">Relate</PanelTab>
+              </PanelTabs>
+              <TabsContent value="design" className="min-h-0 overflow-y-auto">
+                {selectedShape && (
+                  <ShapePanel
+                    doc={doc}
+                    shape={selectedShape}
+                    onUpdate={(id, patch: Partial<Omit<Shape, "id">>, transient) => setDoc((d) => updateShape(d, id, patch), transient)}
+                    onCommit={history.commit}
+                    onDuplicate={(id) => {
+                      const copyId = newId()
+                      setDoc((d) => duplicateShape(d, id, copyId)?.doc ?? d)
+                      setSelectedId(copyId)
+                    }}
+                    onRemove={remove}
+                  />
+                )}
+                <StylePanel style={style} showFrame={showFrame} onChange={setStyle} onCommit={history.commit} onShowFrame={setShowFrame} />
+                <PanelSection title="Export">
+                  <div className="grid grid-cols-[1fr_auto] gap-2">
+                    <Button variant="outline" size="sm" disabled={!doc.shapes.length} onClick={() => download("glyph.svg", toSVG(doc, style), "image/svg+xml")}>
+                      <Download /> Export SVG
+                    </Button>
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button variant="outline" size="icon" className="size-8" aria-label="More export options" disabled={!doc.shapes.length}>
+                          <ChevronDown />
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent align="end" className="w-56">
+                        <ExportItems doc={doc} style={style} copy={copy} />
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
+                  <p className="text-muted-foreground text-xs">
+                    Or copy a <code className="font-mono">glyphs.ts</code> entry for the portfolio.
+                  </p>
+                </PanelSection>
+              </TabsContent>
+              <TabsContent value="relate" className="min-h-0 overflow-y-auto">
+                <RelatePanel doc={doc} selectedId={selectedId} onApply={relate} onUnlink={(id) => setDoc((d) => removeLink(d, id))} />
+              </TabsContent>
+            </Tabs>
+          </aside>
         </div>
         <SaveDialog
           open={!!dialog}
@@ -579,7 +771,7 @@ export default function App() {
           suggestedTitle={glyphFormula || "Untitled glyph"}
           onSave={onSaveDialog}
         />
-        <Toaster position="bottom-center" />
+        <Toaster position="top-center" />
       </TooltipProvider>
     </MotionConfig>
   )

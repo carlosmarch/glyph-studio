@@ -2,10 +2,9 @@ import { useMemo, useState } from "react"
 import { motion } from "motion/react"
 
 import { StaticGlyph } from "@/components/glyph-canvas"
+import { PanelSection } from "@/components/panels/panel-section"
 import { ShapeIcon } from "@/components/shape-icon"
 import { Button } from "@/components/ui/button"
-import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
 import { ToggleGroup, ToggleGroupItem } from "@/components/ui/toggle-group"
 import { fromSpec, KIND_META, KINDS, RELATION_META, RELATIONS, type Doc, type Kind, type RelationKind } from "@/lib/grammar"
 import { COMPOUND_THEMES, COMPOUNDS, pairSpec, PRIMITIVES, type CompoundTheme, type Preset, type Style } from "@/lib/presets"
@@ -35,13 +34,14 @@ function PresetTile({
       onClick={() => onLoad(fromSpec(preset.spec), preset.name)}
       className="group grid gap-1.5 rounded-lg text-left outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
       aria-label={`Load ${preset.name}: ${preset.formula}`}
+      title={preset.reading}
     >
-      <span className="block rounded-md p-3" style={{ background: style.ground }}>
+      <span className="block rounded-md p-2" style={{ background: style.ground }}>
         <StaticGlyph doc={doc} style={style} />
       </span>
-      <span className="flex flex-wrap items-baseline justify-between gap-x-2">
-        <span className="text-sm font-medium">{preset.name}</span>
-        <span className="text-muted-foreground font-mono text-[11px]">{preset.formula}</span>
+      <span className="flex min-w-0 items-baseline justify-between gap-x-1.5">
+        <span className="truncate text-xs font-medium">{preset.name}</span>
+        <span className="text-muted-foreground shrink-0 font-mono text-[10px]">{preset.formula}</span>
       </span>
       {!compact && <span className="text-muted-foreground text-xs leading-snug">{preset.reading}</span>}
     </motion.button>
@@ -78,11 +78,10 @@ export function PresetsPanel({ style, onLoad }: PresetsPanelProps) {
   )
 
   return (
-    <div className="grid gap-6">
-      <div className="grid gap-3">
+    <>
+      <PanelSection title="From the matrix">
         <div>
-          <Label>From the matrix</Label>
-          <p className="text-muted-foreground mt-1 text-xs">
+          <p className="text-muted-foreground text-xs">
             Nine ordered pairs × five relations = 45 base glyphs. Order matters.
           </p>
         </div>
@@ -115,25 +114,19 @@ export function PresetsPanel({ style, onLoad }: PresetsPanelProps) {
             </Button>
           </div>
         </div>
-      </div>
+      </PanelSection>
 
-      <Separator />
-
-      <div className="grid gap-3">
-        <Label>Primitives</Label>
-        <div className="grid grid-cols-3 gap-3">
+      <PanelSection title="Primitives">
+        <div className="grid grid-cols-3 gap-2">
           {PRIMITIVES.map((p) => (
             <PresetTile key={p.name} preset={p} style={style} onLoad={onLoad} compact />
           ))}
         </div>
-      </div>
+      </PanelSection>
 
-      <Separator />
-
-      <div className="grid gap-3">
+      <PanelSection title="Compounds">
         <div>
-          <Label>Compounds</Label>
-          <p className="text-muted-foreground mt-1 text-xs">
+          <p className="text-muted-foreground text-xs">
             A finished glyph behaves like a single shape, so relations chain into larger glyphs.
           </p>
         </div>
@@ -156,14 +149,14 @@ export function PresetsPanel({ style, onLoad }: PresetsPanelProps) {
             {theme === "All" && (
               <span className="text-muted-foreground text-[11px] font-medium tracking-wide uppercase">{shelf.theme}</span>
             )}
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-3">
               {shelf.presets.map((p) => (
-                <PresetTile key={p.name} preset={p} style={style} onLoad={onLoad} />
+                <PresetTile key={p.name} preset={p} style={style} onLoad={onLoad} compact />
               ))}
             </div>
           </div>
         ))}
-      </div>
-    </div>
+      </PanelSection>
+    </>
   )
 }

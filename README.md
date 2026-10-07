@@ -24,6 +24,14 @@ Glyph System Studio is a standalone editor for the shape grammar behind the writ
 
 Fill carries the shape, ink carries the relation. At most 5 shapes, inside a 200 × 100 box.
 
+## The workspace
+
+Laid out like Figma:
+
+- **Left panel** — the main menu (logo: File, Edit, View, Export), the glyph's name (click to rename), and **Layers** / **Assets** tabs. Layers lists the shapes topmost first; Assets holds your saved glyphs and the presets.
+- **Canvas** — the formula on top, the glyph on a grey workspace, and a floating toolbar at the bottom: add circle, triangle or square, random glyph, clear, undo and redo. Click empty workspace to deselect. The `?` button lists the shortcuts.
+- **Right panel** — Save and Share up top, then **Design** (the selected shape's primitive, role and X/Y/W/H — drag a letter to scrub — then palette, colours, stroke, canvas and export) and **Relate**.
+
 ## What you can do
 
 - **Shape** — add circles, triangles and squares; change primitive, role (body, outline, nested mark), position and size. Drag on the canvas; a body carries its nested marks.
@@ -40,6 +48,9 @@ Fill carries the shape, ink carries the relation. At most 5 shapes, inside a 200
 | Key | Action |
 |---|---|
 | `⌘Z` / `⇧⌘Z` (`Ctrl` on Windows/Linux) | Undo / redo |
+| `C` / `T` / `S` | Add a circle / triangle / square |
+| `R` | Random glyph |
+| `⌘S` | Save |
 | Arrow keys (`⇧` for ×5) | Nudge the selected shape |
 | `⌫` / `Delete` | Delete the selected shape |
 | `Esc` | Deselect |
@@ -69,7 +80,7 @@ src/
   lib/export.ts        SVG, glyphs.ts snippet, share-link encoding
   hooks/use-history.ts undo/redo with transient updates for dragging
   components/glyph-canvas.tsx  live Motion canvas + static thumbnails
-  components/panels/   Shape, Relate, Style, Presets
+  components/panels/   Layers, Shape, Relate, Style, Presets, Saved
   components/ui/       shadcn/ui components
 ```
 

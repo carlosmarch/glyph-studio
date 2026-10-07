@@ -1,9 +1,9 @@
 import { Check, Dices } from "lucide-react"
 
+import { PanelSection } from "@/components/panels/panel-section"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Separator } from "@/components/ui/separator"
 import { Slider } from "@/components/ui/slider"
 import { Switch } from "@/components/ui/switch"
 import { PALETTES, type Style } from "@/lib/presets"
@@ -21,21 +21,21 @@ const HEX = /^#[0-9a-f]{6}$/i
 
 function ColorField({ id, label, value, onChange }: { id: string; label: string; value: string; onChange: (v: string) => void }) {
   return (
-    <div className="grid gap-2">
-      <Label htmlFor={id}>{label}</Label>
+    <div className="grid gap-1.5">
+      <Label htmlFor={id} className="text-muted-foreground text-xs font-normal">{label}</Label>
       <div className="flex items-center gap-2">
         <input
           type="color"
           aria-label={`${label} colour picker`}
           value={value}
           onChange={(e) => onChange(e.target.value.toUpperCase())}
-          className="border-input size-9 shrink-0 cursor-pointer rounded-md border bg-transparent p-1"
+          className="border-input size-8 shrink-0 cursor-pointer rounded-md border bg-transparent p-1"
         />
         <Input
           id={id}
           defaultValue={value}
           key={value}
-          className="font-mono uppercase"
+          className="h-8 font-mono text-xs uppercase md:text-xs"
           maxLength={7}
           onBlur={(e) => HEX.test(e.target.value) && onChange(e.target.value.toUpperCase())}
           onKeyDown={(e) => {
@@ -51,9 +51,8 @@ export function StylePanel({ style, showFrame, onChange, onCommit, onShowFrame }
   const active = PALETTES.find((p) => p.ground === style.ground && p.fill === style.fill && p.ink === style.ink)
 
   return (
-    <div className="grid gap-5">
-      <div className="grid gap-2">
-        <Label>Palette</Label>
+    <>
+      <PanelSection title="Palette" actions={<span className="text-muted-foreground pr-2 text-xs">{active ? active.name : "Custom"}</span>}>
         <div className="grid grid-cols-5 gap-2">
           {PALETTES.map((p) => (
             <button
@@ -77,20 +76,18 @@ export function StylePanel({ style, showFrame, onChange, onCommit, onShowFrame }
             </button>
           ))}
         </div>
-        <p className="text-muted-foreground text-xs">{active ? active.name : "Custom"}</p>
-      </div>
+      </PanelSection>
 
-      <div className="grid gap-4">
+      <PanelSection title="Colours">
         <ColorField id="ground" label="Ground" value={style.ground} onChange={(ground) => onChange({ ground })} />
         <ColorField id="fill" label="Fill · shape bodies" value={style.fill} onChange={(fill) => onChange({ fill })} />
         <ColorField id="ink" label="Ink · relations" value={style.ink} onChange={(ink) => onChange({ ink })} />
-      </div>
+      </PanelSection>
 
-      <Separator />
-
+      <PanelSection title="Stroke">
       <div className="grid gap-2">
         <div className="flex items-center justify-between">
-          <Label>Hand-drawn wobble</Label>
+          <Label className="text-xs font-normal">Hand-drawn wobble</Label>
           <span className="text-muted-foreground font-mono text-xs tabular-nums">{style.wobble.toFixed(1)}</span>
         </div>
         <Slider
@@ -106,7 +103,7 @@ export function StylePanel({ style, showFrame, onChange, onCommit, onShowFrame }
 
       <div className="grid gap-2">
         <div className="flex items-center justify-between">
-          <Label>Ink stroke</Label>
+          <Label className="text-xs font-normal">Ink stroke</Label>
           <span className="text-muted-foreground font-mono text-xs tabular-nums">{style.stroke.toFixed(1)}</span>
         </div>
         <Slider
@@ -123,7 +120,7 @@ export function StylePanel({ style, showFrame, onChange, onCommit, onShowFrame }
       <div className="flex items-end gap-3">
         <div className="grid flex-1 gap-2">
           <div className="flex items-center justify-between">
-            <Label>Wobble seed</Label>
+            <Label className="text-xs font-normal">Wobble seed</Label>
             <span className="text-muted-foreground font-mono text-xs tabular-nums">{style.seed}</span>
           </div>
           <Slider
@@ -146,10 +143,14 @@ export function StylePanel({ style, showFrame, onChange, onCommit, onShowFrame }
         </Button>
       </div>
 
+      </PanelSection>
+
+      <PanelSection title="Canvas">
       <div className="flex items-center justify-between">
-        <Label htmlFor="frame">Show the 200 × 100 frame</Label>
+        <Label htmlFor="frame" className="font-normal">Show the 200 × 100 frame</Label>
         <Switch id="frame" checked={showFrame} onCheckedChange={onShowFrame} />
       </div>
-    </div>
+      </PanelSection>
+    </>
   )
 }
