@@ -786,7 +786,8 @@ export default function App() {
           suggestedTitle={glyphFormula || "Untitled glyph"}
           onSave={onSaveDialog}
         />
-        <Toaster position="top-center" />
+        {/* Bottom-centre, above the tools toolbar — the top is the formula toolbar. */}
+        <Toaster position="bottom-center" offset={{ bottom: 76 }} mobileOffset={{ bottom: 76 }} />
       </TooltipProvider>
     </MotionConfig>
   )
