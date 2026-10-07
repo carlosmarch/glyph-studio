@@ -56,7 +56,18 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/comp
 import { useHistory } from "@/hooks/use-history"
 import { randomDoc } from "@/lib/formula"
 import { loadLibrary, newSavedId, storeLibrary, type SavedGlyph } from "@/lib/library"
-import { decodeState, download, encodeState, toAnimatedSVG, toGIF, toSnippet, toSVG } from "@/lib/export"
+import {
+  decodeState,
+  download,
+  encodeState,
+  fileBase,
+  toAnimatedSVG,
+  toEntranceGIF,
+  toEntranceSVG,
+  toGIF,
+  toSnippet,
+  toSVG,
+} from "@/lib/export"
 import {
   addShape,
   applyRelation,
@@ -159,29 +170,36 @@ function PanelTab(props: React.ComponentProps<typeof TabsTrigger>) {
   )
 }
 
-function exportGIF(doc: Doc, style: Style) {
-  const gif = toGIF(doc, style)
-  toast.promise(gif, { loading: "Rendering GIF…", success: "GIF downloaded", error: "Couldn't render the GIF" })
-  gif.then((blob) => download("glyph.gif", blob, "image/gif")).catch(() => {})
+function exportGIF(render: Promise<Blob>, filename: string) {
+  toast.promise(render, { loading: "Rendering GIF…", success: `Downloaded ${filename}`, error: "Couldn't render the GIF" })
+  render.then((blob) => download(filename, blob, "image/gif")).catch(() => {})
 }
 
-function ExportItems({ doc, style, copy }: { doc: Doc; style: Style; copy: (text: string, what: string) => void }) {
+function ExportItems({ doc, style, name, copy }: { doc: Doc; style: Style; name: string; copy: (text: string, what: string) => void }) {
   return (
     <>
       <DropdownMenuLabel>SVG</DropdownMenuLabel>
-      <DropdownMenuItem onSelect={() => download("glyph.svg", toSVG(doc, style), "image/svg+xml")}>
+      <DropdownMenuItem onSelect={() => download(`${name}.svg`, toSVG(doc, style), "image/svg+xml")}>
         <Download /> Download SVG
       </DropdownMenuItem>
       <DropdownMenuItem onSelect={() => copy(toSVG(doc, style), "SVG")}>
         <Copy /> Copy SVG markup
       </DropdownMenuItem>
       <DropdownMenuSeparator />
-      <DropdownMenuLabel>Animated</DropdownMenuLabel>
-      <DropdownMenuItem onSelect={() => download("glyph-animated.svg", toAnimatedSVG(doc, style), "image/svg+xml")}>
-        <Film /> Download animated SVG
+      <DropdownMenuLabel>Animated · boiling line</DropdownMenuLabel>
+      <DropdownMenuItem onSelect={() => download(`${name}-boil.svg`, toAnimatedSVG(doc, style), "image/svg+xml")}>
+        <Film /> Animated SVG
       </DropdownMenuItem>
-      <DropdownMenuItem onSelect={() => exportGIF(doc, style)}>
-        <ImagePlay /> Download GIF
+      <DropdownMenuItem onSelect={() => exportGIF(toGIF(doc, style), `${name}-boil.gif`)}>
+        <ImagePlay /> GIF
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuLabel>Animated · with entrance</DropdownMenuLabel>
+      <DropdownMenuItem onSelect={() => download(`${name}-entrance.svg`, toEntranceSVG(doc, style), "image/svg+xml")}>
+        <Film /> Animated SVG
+      </DropdownMenuItem>
+      <DropdownMenuItem onSelect={() => exportGIF(toEntranceGIF(doc, style), `${name}-entrance.gif`)}>
+        <ImagePlay /> GIF
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       <DropdownMenuLabel>Portfolio</DropdownMenuLabel>
@@ -209,6 +227,7 @@ export default function App() {
   const [activeId, setActiveId] = useState(() => library.find((g) => g.state === encoded)?.id ?? null)
   const active = library.find((g) => g.id === activeId) ?? null
   const dirty = !!active && encoded !== active.state
+  const exportName = fileBase(active?.title)
   const [dialog, setDialog] = useState<{ mode: "save" | "edit"; glyph: SavedGlyph | null } | null>(null)
 
   // A selection that no longer exists (undo, preset load…) reads as none.
@@ -509,7 +528,7 @@ export default function App() {
                   <DropdownMenuSub>
                     <DropdownMenuSubTrigger disabled={!doc.shapes.length}>Export</DropdownMenuSubTrigger>
                     <DropdownMenuSubContent className="w-56">
-                      <ExportItems doc={doc} style={style} copy={copy} />
+                      <ExportItems doc={doc} style={style} name={exportName} copy={copy} />
                     </DropdownMenuSubContent>
                   </DropdownMenuSub>
                   <DropdownMenuSeparator />
@@ -769,7 +788,7 @@ export default function App() {
                 <StylePanel style={style} showFrame={showFrame} onChange={setStyle} onCommit={history.commit} onShowFrame={setShowFrame} />
                 <PanelSection collapsible title="Export">
                   <div className="grid grid-cols-[1fr_auto] gap-2">
-                    <Button variant="outline" size="sm" disabled={!doc.shapes.length} onClick={() => download("glyph.svg", toSVG(doc, style), "image/svg+xml")}>
+                    <Button variant="outline" size="sm" disabled={!doc.shapes.length} onClick={() => download(`${exportName}.svg`, toSVG(doc, style), "image/svg+xml")}>
                       <Download /> Export SVG
                     </Button>
                     <DropdownMenu>
@@ -779,7 +798,7 @@ export default function App() {
                         </Button>
                       </DropdownMenuTrigger>
                       <DropdownMenuContent align="end" className="w-56">
-                        <ExportItems doc={doc} style={style} copy={copy} />
+                        <ExportItems doc={doc} style={style} name={exportName} copy={copy} />
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </div>
