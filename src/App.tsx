@@ -751,7 +751,7 @@ export default function App() {
                   />
                 )}
                 <StylePanel style={style} showFrame={showFrame} onChange={setStyle} onCommit={history.commit} onShowFrame={setShowFrame} />
-                <PanelSection title="Export">
+                <PanelSection collapsible title="Export">
                   <div className="grid grid-cols-[1fr_auto] gap-2">
                     <Button variant="outline" size="sm" disabled={!doc.shapes.length} onClick={() => download("glyph.svg", toSVG(doc, style), "image/svg+xml")}>
                       <Download /> Export SVG
