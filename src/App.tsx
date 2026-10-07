@@ -574,6 +574,18 @@ export default function App() {
                 }}
               />
 
+              <div className="-mb-3 flex min-w-0">
+                {/* The glyph's name sits on the frame's corner, like a frame name in Figma. */}
+                <button
+                  type="button"
+                  onClick={() => setDialog(active ? { mode: "edit", glyph: active } : { mode: "save", glyph: null })}
+                  className="text-muted-foreground hover:text-foreground -mx-1 truncate rounded px-1 text-xs font-medium outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50"
+                  title={active ? "Rename" : "Save with a title"}
+                >
+                  {active?.title ?? "Untitled glyph"}
+                </button>
+              </div>
+
               <div className="overflow-hidden rounded-sm shadow-[0_1px_3px_rgb(0_0_0/0.08),0_8px_24px_-8px_rgb(0_0_0/0.15)]" style={{ background: style.ground }}>
                 <GlyphCanvas
                   doc={doc}
