@@ -255,16 +255,10 @@ const find = (b: Block, key: string) => b.shapes.find((s) => s.key === key)!
 
 function shapeBlock(kind: Kind, hollow: boolean): Block {
   const key = nextKey()
-  // Random layouts mix small accents with large bodies.
-  let w = BASE * (chance(0.25) ? vary(1, 0.25, 0.45) : vary(1, 0.7, 1.8))
-  let h = kind === "triangle" ? w * 0.92 : w
-  // Squares stretch into bars and columns, triangles into roofs and spires; circles stay round.
-  if (kind === "square" && chance(0.55)) {
-    if (chance(0.6)) {
-      w *= vary(1, 1.3, 2)
-      h = w * vary(1, 0.16, 0.55)
-    } else h = w * vary(1, 1.5, 2.8)
-  } else if (kind === "triangle" && chance(0.35)) h = w * vary(1, 0.5, 1.4)
+  const w = BASE * vary(1, 0.45, 1.7)
+  // Squares and triangles sometimes stretch; circles stay round.
+  const aspect = kind !== "circle" && chance(0.35) ? vary(1, 0.6, 1.6) : 1
+  const h = (kind === "triangle" ? w * 0.92 : w) * aspect
   return {
     shapes: [{ key, kind, role: hollow ? "outline" : "fill", x: 0, y: 0, w, h }],
     links: [],
@@ -284,7 +278,7 @@ function layout(node: Node, fanDirection: "row" | "column" = "column"): Block {
       const next = layout(item)
       const a = bbox(acc.shapes)
       const n = bbox(next.shapes)
-      const placed = moveTo(next, a.x + a.w + vary(4, 5, 22), a.y + a.h - n.h)
+      const placed = moveTo(next, a.x + a.w + vary(4, 4, 16), a.y + a.h - n.h)
       acc = merge(acc, placed, [], acc.head, placed.tail, [...acc.heads, ...placed.heads])
     }
     return acc
@@ -325,22 +319,15 @@ function layout(node: Node, fanDirection: "row" | "column" = "column"): Block {
 
   if (op === "stack") {
     let A = layout(node.a, "row")
-    let B = layout(node.b)
+    const B = layout(node.b)
     const a0 = bbox(A.shapes)
-    // A random layout often spreads a lone square into a wide base under what it carries.
-    if (B.shapes.length === 1 && B.shapes[0].kind === "square" && chance(0.7)) {
-      const base = B.shapes[0]
-      const w = Math.max(base.w, a0.w * vary(1, 1.15, 2.6))
-      const h = w > base.w * 1.4 ? Math.min(base.h, w * vary(1, 0.14, 0.4)) : base.h
-      B = { ...B, shapes: [{ ...base, w, h }] }
-    }
     const b = bbox(B.shapes)
     const fit = vary(0.9, 0.35, 0.95)
-    if (a0.w > b.w * fit || chance(0.4)) A = scale(A, (b.w * fit) / a0.w)
+    if (a0.w > b.w * fit || chance(0.5)) A = scale(A, (b.w * fit) / a0.w)
     const a = bbox(A.shapes)
     // Off-centre on its base, but always with enough footing to read as stacked.
     const slide = vary(0, -1, 1) * Math.max(0, (b.w - a.w) / 2)
-    const placed = moveTo(A, b.cx - a.w / 2 + slide, b.y - a.h - vary(3, 0.5, 0.5))
+    const placed = moveTo(A, b.cx - a.w / 2 + slide, b.y - a.h - 3)
     return merge(placed, B, [], B.head, B.tail, B.heads)
   }
 
@@ -386,14 +373,14 @@ function layout(node: Node, fanDirection: "row" | "column" = "column"): Block {
   if (grow > 1) B = scale(B, grow)
   const target = find(B, B.head)
   const triangle = target.kind === "triangle"
-  const fill = triangle ? vary(0.34, 0.2, 0.36) : vary(0.5, 0.2, 0.5)
+  const fill = triangle ? vary(0.34, 0.2, 0.36) : vary(0.5, 0.22, 0.66)
   const room = { w: target.w * fill, h: target.h * fill }
   const a0 = bbox(A.shapes)
   A = scale(A, Math.min(room.w / a0.w, room.h / a0.h, 1))
   A = { ...A, shapes: A.shapes.map((s) => ({ ...s, role: "ink" })) }
   const a = bbox(A.shapes)
   // In a square or circle the mark can drift from the centre while staying well inside.
-  const drift = triangle ? 0 : (1 - fill) * (target.kind === "circle" ? 0.22 : 0.42)
+  const drift = triangle ? 0 : (1 - fill) * (target.kind === "circle" ? 0.22 : 0.38)
   const cx = target.x + target.w / 2 + vary(0, -1, 1) * target.w * drift
   const cy = (triangle ? target.y + target.h * 0.68 : target.y + target.h / 2) + vary(0, -1, 1) * target.h * drift
   const placed = moveTo(A, cx - a.w / 2, cy - a.h / 2)
@@ -469,15 +456,15 @@ function layoutDoc(parts: Node[]): Doc {
     acc = merge(acc, moveTo(sized, a.x + a.w + vary(30, 18, 60), a.cy - s.h / 2 + dy), [], acc.head, sized.tail)
   }
 
-  // Fit the whole thing into the box, centred; a random layout fills it and
-  // sometimes leans to one side.
+  // Fit the whole thing into the box: centred, or for a random layout at any
+  // size and pushed towards any edge.
   const box = bbox(acc!.shapes)
-  const pad = jitter ? 6 : PAD
+  const pad = jitter ? 4 : PAD
   const fit = Math.min((BOX_W - pad * 2) / box.w, (BOX_H - pad * 2) / box.h)
-  const k = jitter ? Math.min(fit, 2.4) * vary(1, 0.88, 1) : Math.min(fit, MAX_SCALE)
+  const k = jitter ? Math.min(fit, 2.4) * vary(1, 0.55, 1) : Math.min(fit, MAX_SCALE)
   const fitted = scale(acc!, k)
   const fb = bbox(fitted.shapes)
-  const align = () => (chance(0.35) && jitter ? pick([0.2, 0.35, 0.65, 0.8], jitter) : 0.5)
+  const align = () => (chance(0.4) ? 0.5 : jitter ? pick([0, 0.25, 0.75, 1], jitter) : 0.5)
   const x = pad + (BOX_W - pad * 2 - fb.w) * align()
   const y = pad + (BOX_H - pad * 2 - fb.h) * align()
   const final = translate(fitted, x - fb.x, y - fb.y)
@@ -539,47 +526,34 @@ export const FORMULA_KEYS: { key: string; label: string }[] = [
 const pick = <T,>(xs: readonly T[], rand: () => number) => xs[Math.floor(rand() * xs.length)]
 const SYMBOLS = ["●", "▲", "■"] as const
 const HOLLOW = ["○", "△", "□"] as const
-const OP_SYMBOLS = [" — ", " — ", " — ", " / ", " / ", " ⊂ ", " ⊂ ", " × ", " | ", " | "] as const
+const OP_SYMBOLS = [" — ", " — ", " / ", " ⊂ ", " × ", " | "] as const
 
-/** A random 2–5 shape formula: stacks on wide bases, rows, nests, fans, links and the odd loop. */
+/** A random 2–5 shape formula: relations, groups, fans, loops and separate parts. */
 export function randomFormula(rand = Math.random): string {
-  const shape = (hollowOk = false) => (hollowOk && rand() < 0.15 ? pick(HOLLOW, rand) : pick(SYMBOLS, rand))
-  // What things rest on is usually a square, which spreads into a wide base.
-  const base = () => (rand() < 0.75 ? "■" : shape())
+  const shape = (hollowOk = false) => (hollowOk && rand() < 0.2 ? pick(HOLLOW, rand) : pick(SYMBOLS, rand))
   const wrap = (e: { expr: string; n: number }) => (e.n > 1 ? `(${e.expr})` : e.expr)
 
   function expr(n: number, top: boolean, onLine = false): { expr: string; n: number } {
     if (n === 1) return { expr: shape(onLine), n }
     const r = rand()
     // A loop: ● — ▲ — ■ — ●
-    if (top && n >= 3 && n <= 4 && r < 0.04) {
+    if (top && n >= 3 && n <= 4 && r < 0.12) {
       const first = shape()
       const middle = Array.from({ length: n - 1 }, () => shape(true))
       return { expr: [first, ...middle, first].join(" — "), n }
     }
-    // Two separate parts.
-    if (top && n >= 3 && r < 0.08) {
-      const k = 1 + Math.floor(rand() * (n - 1))
-      return { expr: `${expr(k, false).expr} · ${expr(n - k, false).expr}`, n }
-    }
-    // A row standing on a base, or something resting on a row: (■ ■ ■) / ■, ■ / (▲ ▲ ▲)
-    if (n >= 3 && r < 0.2) {
-      const k = Math.min(n - 1, 2 + Math.floor(rand() * 2))
-      const one = shape()
-      const row = Array.from({ length: k }, () => (rand() < 0.7 ? one : shape())).join(" ")
-      if (rand() < 0.35) return { expr: `${wrap(expr(n - k, false))} / (${row})`, n }
-      const rest = n - k === 1 ? base() : wrap(expr(n - k, false))
-      return { expr: `(${row}) / ${rest}`, n }
-    }
-    // A short pile on a base: ▲ / ● / ■
-    if (n === 3 && r < 0.28) return { expr: `${shape()} / ${shape()} / ${base()}`, n }
     // One to many: {▲, ●} / ■ or ■ — {●, ●, ●}
-    if (n >= 3 && r < 0.5) {
+    if (n >= 3 && r < 0.3) {
       const k = 2 + Math.floor(rand() * Math.min(2, n - 2))
       const fan = `{${Array.from({ length: k }, () => shape()).join(", ")}}`
       const rest = expr(n - k, false)
-      const op = pick([" — ", " — ", " / ", " | "] as const, rand)
+      const op = pick([" — ", " / ", " | "] as const, rand)
       return { expr: op === " — " ? `${wrap(rest)} — ${fan}` : `${fan}${op}${wrap(rest)}`, n }
+    }
+    // Two separate parts.
+    if (top && n >= 3 && r < 0.42) {
+      const k = 1 + Math.floor(rand() * (n - 1))
+      return { expr: `${expr(k, false).expr} · ${expr(n - k, false).expr}`, n }
     }
     const k = 1 + Math.floor(rand() * (n - 1))
     const op = pick(OP_SYMBOLS, rand)
@@ -587,7 +561,7 @@ export function randomFormula(rand = Math.random): string {
     return { expr: `${wrap(expr(k, false, line))}${op}${wrap(expr(n - k, false, line))}`, n }
   }
 
-  const n = pick([2, 3, 3, 4, 4, 4, 5], rand)
+  const n = pick([2, 3, 3, 4, 4, 5, 5], rand)
   return expr(n, true).expr
 }
 
@@ -652,13 +626,6 @@ function clean(doc: Doc): boolean {
   return true
 }
 
-/** The box is twice as wide as tall: a composition should spread across it, not stand in it. */
-function wide(doc: Doc): boolean {
-  const xs = doc.shapes.flatMap((s) => [s.x, s.x + s.w])
-  const ys = doc.shapes.flatMap((s) => [s.y, s.y + s.h])
-  return Math.max(...xs) - Math.min(...xs) >= (Math.max(...ys) - Math.min(...ys)) * 1.25
-}
-
 /**
  * A random glyph that passes the grammar's rules, with a free composition:
  * sizes, angles, spacing and placement in the box all vary, and the layout is
@@ -675,7 +642,7 @@ export function randomDoc(rand = Math.random): { doc: Doc; formula: string } {
     const reads = readFormula(plain)
     for (let j = 0; j < 12; j++) {
       const doc = formulaToDoc(formula, rand)
-      if (ok(doc) && clean(doc) && wide(doc) && readFormula(doc) === reads) return { doc, formula }
+      if (ok(doc) && clean(doc) && readFormula(doc) === reads) return { doc, formula }
     }
   }
   return last
